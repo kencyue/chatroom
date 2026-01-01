@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ChatApp - Admin Pro</title>
+    <title>ChatApp - Pro Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -12,85 +12,120 @@
     <style>
         :root { --sat: env(safe-area-inset-bottom); }
         .hidden { display: none !important; }
-        body, html { height: 100%; margin: 0; background: #0f172a; overscroll-behavior: none; }
+        body, html { height: 100%; margin: 0; overscroll-behavior: none; transition: background 0.3s; }
+        
+        /* 主題顏色定義 */
+        .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; }
+        .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; }
+        .theme-green { --main-color: #059669; --bg-color: #064e3b; --panel-color: #065f46; }
+
+        body { background: var(--bg-color); }
+        .bg-panel { background: var(--panel-color); }
+        .text-main { color: var(--main-color); }
+        .btn-main { background: var(--main-color); }
+
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         #messages-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
-        #animal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 12px; max-height: 45vh; overflow-y: auto; padding: 10px; }
-        .animal-btn { font-size: 2.2rem; aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 1.25rem; display: flex; align-items: center; justify-content: center; }
+
+        /* 4x4 動物網格固定佈局 */
+        #animal-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 12px; 
+            padding: 10px;
+            width: 100%;
+        }
+        .animal-btn { 
+            aspect-ratio: 1; 
+            background: rgba(255,255,255,0.05); 
+            border-radius: 1rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
-        /* 修正 Flatpickr 手機版外觀 */
-        .flatpickr-input { color-scheme: dark; }
     </style>
 </head>
-<body class="text-white">
+<body class="text-white theme-fuchsia">
 
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
-        <div class="w-full max-w-md bg-slate-900 border border-white/10 p-6 rounded-[2.5rem] shadow-2xl">
-            <h1 class="text-xl font-bold text-center mb-6 text-fuchsia-400 font-black tracking-widest">身分登入</h1>
+        <div class="w-full max-w-sm bg-panel border border-white/10 p-6 rounded-[2.5rem] shadow-2xl">
+            <h1 class="text-xl font-bold text-center mb-6 text-main font-black tracking-widest uppercase">Identity Login</h1>
             <div id="login-step-1">
                 <div class="flex justify-center gap-3 mb-6">
                     <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
                     <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
                     <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
-                <div id="animal-grid" class="custom-scrollbar"></div>
-                <button id="btn-next" disabled class="w-full mt-6 bg-fuchsia-600 py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg shadow-fuchsia-900/20 transition-all">下一步</button>
+                <div id="animal-grid"></div>
+                <button id="btn-next" disabled class="w-full mt-6 btn-main py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg transition-all">NEXT STEP</button>
             </div>
-            <div id="login-step-2" class="hidden space-y-4 animate-in fade-in zoom-in duration-300">
+            <div id="login-step-2" class="hidden space-y-4">
                 <div id="id-preview" class="text-center text-5xl mb-4 tracking-[0.2em]"></div>
-                <input type="password" id="login-pin" inputmode="numeric" placeholder="PIN 密碼 (4-8 位)" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center text-xl outline-none focus:border-fuchsia-500">
-                <input type="text" id="login-name" placeholder="顯示暱稱" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center outline-none focus:border-fuchsia-500">
+                <input type="password" id="login-pin" inputmode="numeric" placeholder="PIN (4-8 digits)" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center text-xl outline-none focus:border-main">
+                <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center outline-none">
                 <div class="flex gap-2">
-                    <button id="btn-back" class="flex-1 bg-slate-800 py-4 rounded-2xl font-bold">返回</button>
-                    <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-4 rounded-2xl font-black">進入</button>
+                    <button id="btn-back" class="flex-1 bg-slate-800 py-4 rounded-2xl font-bold">BACK</button>
+                    <button id="btn-login" class="flex-[2] btn-main py-4 rounded-2xl font-black text-white">LOGIN</button>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="chat-screen" class="hidden">
-        <header class="h-16 border-b border-white/10 flex items-center px-4 bg-slate-900/95 justify-between shrink-0">
+        <header class="h-16 border-b border-white/10 flex items-center px-4 bg-panel backdrop-blur justify-between shrink-0">
             <div class="flex items-center gap-3 overflow-hidden">
                 <span id="header-avatar" class="text-2xl"></span>
                 <div class="truncate">
                     <h2 id="current-ch-name" class="font-bold text-sm truncate uppercase tracking-tighter"></h2>
-                    <p id="display-date" class="text-[10px] text-fuchsia-400 font-mono font-bold"></p>
+                    <p id="display-date" class="text-[10px] text-main font-mono font-bold"></p>
                 </div>
             </div>
-            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-800 rounded-xl active:bg-slate-700 transition-colors">
-                <i data-lucide="menu" class="w-6 h-6 text-fuchsia-400"></i>
+            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-800/50 rounded-xl active:scale-90 transition-transform">
+                <i data-lucide="menu" class="w-6 h-6 text-main"></i>
             </button>
         </header>
         
         <div id="messages-container" class="p-4 space-y-4 custom-scrollbar"></div>
 
-        <div class="p-3 border-t border-white/10 bg-slate-900 safe-bottom">
+        <div class="p-3 border-t border-white/10 bg-panel safe-bottom">
             <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
-                <input type="text" id="msg-input" placeholder="傳送訊息..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-3 outline-none focus:border-fuchsia-500 text-sm">
-                <button type="submit" class="bg-fuchsia-600 p-3 rounded-full shadow-lg active:scale-90 transition-transform">
+                <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-3 outline-none text-sm">
+                <button type="submit" class="btn-main text-white p-3 rounded-full shadow-lg active:scale-90 transition-transform">
                     <i data-lucide="send" class="w-5 h-5"></i>
                 </button>
             </form>
         </div>
 
-        <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-slate-900 border-l border-white/10 transform translate-x-full transition-transform duration-300 z-[110] flex flex-col">
-            <div class="p-5 border-b border-white/10 flex justify-between items-center">
-                <span class="font-black text-fuchsia-400 uppercase tracking-widest">系統選單</span>
+        <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-panel shadow-2xl transform translate-x-full transition-transform duration-300 z-[110] flex flex-col">
+            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/10">
+                <span class="font-black text-main uppercase tracking-widest">Settings</span>
                 <button onclick="toggleSideMenu()"><i data-lucide="x"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
                 <div>
-                    <label class="text-[10px] text-gray-500 mb-3 block uppercase font-black tracking-widest">日期選擇</label>
-                    <input type="text" id="date-picker-input" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-sm text-center font-bold mb-3">
-                    <button onclick="goToday()" class="w-full py-3 bg-fuchsia-600/10 text-fuchsia-400 rounded-xl text-xs font-bold border border-fuchsia-500/20">回到今日</button>
+                    <label class="text-[10px] text-gray-400 mb-3 block uppercase font-black tracking-widest">Theme Color</label>
+                    <div class="flex gap-3">
+                        <button onclick="setTheme('fuchsia')" class="w-10 h-10 rounded-full bg-fuchsia-600 border-2 border-white/20"></button>
+                        <button onclick="setTheme('blue')" class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20"></button>
+                        <button onclick="setTheme('green')" class="w-10 h-10 rounded-full bg-emerald-600 border-2 border-white/20"></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-400 mb-3 block uppercase font-black tracking-widest">Select Date</label>
+                    <input type="text" id="date-picker-input" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-center font-bold mb-3">
+                    <button onclick="goToday()" class="w-full py-3 bg-white/5 text-main rounded-xl text-xs font-bold border border-white/10 active:bg-white/10">Back to Today</button>
                 </div>
                 <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-white/10">
-                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest">人員管理</label>
+                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest">User Management (Admin)</label>
                     <div id="user-list" class="space-y-3"></div>
                 </div>
             </div>
             <div class="p-5 border-t border-white/10">
-                <button id="btn-logout" class="w-full py-4 text-red-400 bg-red-400/10 rounded-2xl text-xs font-black">登出</button>
+                <button id="btn-logout" class="w-full py-4 text-red-400 bg-red-400/10 rounded-2xl text-xs font-black uppercase tracking-widest">Logout</button>
             </div>
         </aside>
     </div>
@@ -113,7 +148,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐺", "🦓", "🐘", "🦒", "🐫", "🦖"];
+        // 精簡為 4x4 = 16 個動物
+        const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
         let selectedAnimals = [];
         let userProfile = null;
         let currentChatDate = "";
@@ -122,7 +158,14 @@
 
         const getTodayStr = () => new Date().toLocaleDateString('sv');
 
-        // 介面初始化
+        // 初始化主題
+        window.setTheme = (theme) => {
+            document.body.className = `text-white theme-${theme}`;
+            localStorage.setItem('chat_theme', theme);
+        };
+        setTheme(localStorage.getItem('chat_theme') || 'fuchsia');
+
+        // 生成 4x4 動物網格
         const grid = document.getElementById('animal-grid');
         ANIMALS.forEach(a => {
             const b = document.createElement('button');
@@ -133,7 +176,11 @@
 
         window.removeAnimal = (i) => { selectedAnimals.splice(i, 1); updateSlots(); };
         function updateSlots() {
-            document.querySelectorAll('.selected-slot').forEach((s, i) => s.innerText = selectedAnimals[i] || "");
+            document.querySelectorAll('.selected-slot').forEach((s, i) => {
+                s.innerText = selectedAnimals[i] || "";
+                s.classList.toggle('border-white/20', !selectedAnimals[i]);
+                s.classList.toggle('border-main', !!selectedAnimals[i]);
+            });
             document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
         }
 
@@ -148,12 +195,11 @@
             document.getElementById('login-step-2').classList.add('hidden');
         };
 
-        // 登入
         document.getElementById('btn-login').onclick = async () => {
             const pin = document.getElementById('login-pin').value;
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-            if(pin.length < 4) return alert("PIN 需 4~8 位");
+            if(pin.length < 4) return alert("PIN required");
 
             try {
                 await signInAnonymously(auth);
@@ -161,10 +207,10 @@
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pin) return alert("PIN 錯誤");
+                    if (userSnap.data().pin !== pin) return alert("PIN error");
                     userProfile = userSnap.data();
                 } else {
-                    if (!name) return alert("初次登入請輸入暱稱");
+                    if (!name) return alert("Enter nickname");
                     const userQuery = query(collection(db, 'users'), limit(1));
                     const userCheck = await getDocs(userQuery);
                     const role = userCheck.empty ? 'admin' : 'user';
@@ -176,14 +222,12 @@
             } catch (e) { alert(e.message); }
         };
 
-        // 進入聊天
         function enterChat() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
             document.getElementById('header-avatar').innerText = userProfile.animals[0];
-            document.getElementById('current-ch-name').innerText = `${userProfile.name}${userProfile.role==='admin'?' 👑':''}`;
+            document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
             
-            // 初始化 Flatpickr
             fpInstance = flatpickr("#date-picker-input", {
                 defaultDate: "today", maxDate: "today", theme: "dark",
                 onChange: ([date]) => loadMessages(date.toLocaleDateString('sv'))
@@ -205,29 +249,27 @@
             if(msgUnsubscribe) msgUnsubscribe();
             currentChatDate = dateStr;
             document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
-            
             const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
 
             msgUnsubscribe = onSnapshot(q, (snap) => {
                 const container = document.getElementById('messages-container');
-                container.innerHTML = snap.empty ? `<div class="text-center text-slate-600 py-20 text-xs">📅 ${dateStr} 目前尚無訊息</div>` : "";
+                container.innerHTML = snap.empty ? `<div class="text-center text-slate-500 py-20 text-xs tracking-widest uppercase">No messages for this date</div>` : "";
                 snap.forEach(d => {
                     const m = d.data();
                     const isMe = m.senderId === userProfile.animalId;
-                    const isAdmin = userProfile.role === 'admin';
                     const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                     
                     const msgDiv = document.createElement('div');
                     msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
-                        <div class="w-9 h-9 rounded-2xl bg-slate-800 flex shrink-0 items-center justify-center text-xl border border-white/5">${m.avatar}</div>
+                        <div class="w-10 h-10 rounded-2xl bg-slate-800 flex shrink-0 items-center justify-center text-xl border border-white/5">${m.avatar}</div>
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[9px] text-slate-500 font-bold">${m.senderName}</span>
-                                ${isAdmin ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500 opacity-50 hover:opacity-100"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                                <span class="text-[9px] text-gray-500 font-black tracking-wider">${m.senderName}</span>
+                                ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500/30 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
                             </div>
                             <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2.5 rounded-2xl text-[13px] ${isMe ? 'bg-fuchsia-600 shadow-fuchsia-900/20' : 'bg-slate-800 border border-white/5'} shadow-lg">
+                                <div class="px-4 py-2.5 rounded-2xl text-[14px] ${isMe ? 'btn-main shadow-lg' : 'bg-slate-800 border border-white/5 text-slate-200'}">
                                     ${m.text}
                                 </div>
                                 <span class="text-[8px] text-slate-600 font-mono mb-1 shrink-0">${time}</span>
@@ -236,14 +278,13 @@
                     `;
                     container.appendChild(msgDiv);
                 });
-                lucide.createIcons(); // 必須在動態內容渲染後執行
+                lucide.createIcons();
                 container.scrollTop = container.scrollHeight;
             });
         }
 
-        // 刪除訊息 (對應到當前開啟的日期房間)
         window.deleteMsg = async (msgId) => {
-            if(confirm("確定刪除此訊息嗎？")) {
+            if(confirm("Delete message?")) {
                 await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
             }
         };
@@ -259,13 +300,9 @@
                 avatar: userProfile.animals[0], timestamp: Date.now()
             });
             input.value = "";
-            if(currentChatDate !== today) {
-                fpInstance.setDate(today);
-                loadMessages(today);
-            }
+            if(currentChatDate !== today) goToday();
         };
 
-        // 管理員：人員管理
         function initAdmin() {
             document.getElementById('admin-panel').classList.remove('hidden');
             onSnapshot(collection(db, 'users'), (snap) => {
@@ -274,13 +311,13 @@
                 snap.forEach(d => {
                     const u = d.data();
                     const item = document.createElement('div');
-                    item.className = "p-4 bg-black/40 rounded-2xl text-xs border border-white/5 flex justify-between items-center";
+                    item.className = "p-4 bg-black/20 rounded-2xl text-xs border border-white/5 flex justify-between items-center";
                     item.innerHTML = `
                         <div class="flex flex-col">
-                            <span class="font-black text-slate-100">${u.animals.join('')} ${u.name}</span>
-                            <span class="text-[9px] text-fuchsia-500 font-mono uppercase tracking-widest">${u.role} | PIN: ${u.pin}</span>
+                            <span class="font-black">${u.animals.join('')} ${u.name}</span>
+                            <span class="text-[9px] text-main font-mono tracking-widest uppercase">${u.role} | PIN: ${u.pin}</span>
                         </div>
-                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-rose-500 bg-rose-500/10 p-2 rounded-xl hover:bg-rose-500/20"><i data-lucide="user-minus" class="w-4 h-4"></i></button>` : '<i data-lucide="shield-check" class="text-amber-500 w-4 h-4"></i>'}
+                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="user-minus" class="w-4 h-4"></i></button>` : '<i data-lucide="shield-check" class="text-amber-500 w-4 h-4"></i>'}
                     `;
                     list.appendChild(item);
                 });
@@ -288,8 +325,8 @@
             });
         }
 
-        window.deleteUser = async (userId) => {
-            if(confirm(`確定註銷人員 ${userId} 嗎？`)) await deleteDoc(doc(db, 'users', userId));
+        window.deleteUser = async (uid) => {
+            if(confirm(`Delete user ${uid}?`)) await deleteDoc(doc(db, 'users', uid));
         };
 
         window.toggleSideMenu = () => {
@@ -299,7 +336,6 @@
 
         document.getElementById('btn-logout').onclick = () => { localStorage.clear(); location.reload(); };
 
-        // 自動登入檢查
         (async () => {
             const savedId = localStorage.getItem('chat_animal_id');
             if(savedId) {
