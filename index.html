@@ -3,100 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>線上聊天室</title>
+    <title>日期分區聊天室</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
-        /* 隱藏滾動條但保持功能 */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-        
-        /* 防止手機點擊縮放 */
-        input, button { font-size: 16px !important; }
-        
         .hidden { display: none !important; }
-        
-        /* 動畫效果 */
-        .animal-btn:active { transform: scale(0.9); }
-        .selected-slot { transition: all 0.2s ease; }
+        /* 讓日期選擇器更美觀 */
+        .flatpickr-calendar { background: #1f2937 !important; border: 1px solid #374151 !important; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
     <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900">
-        <div class="w-full max-w-md bg-black/40 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl">
-            <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">線上聊天室</h1>
-            
+        <div class="w-full max-w-md bg-black/40 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl">
+            <h1 class="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">線上聊天室</h1>
             <div id="login-step-1">
-                <p class="text-gray-400 text-center text-sm mb-4">請依序選擇 3 個動物 (點擊可刪除)</p>
                 <div class="flex justify-center gap-3 mb-6">
-                    <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
-                    <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
-                    <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
+                    <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
+                    <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
+                    <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
-                
-                <div id="animal-grid" class="grid grid-cols-5 gap-2 max-h-56 overflow-y-auto p-2 border border-white/5 rounded-xl bg-black/20 custom-scrollbar mb-4">
-                    </div>
-
-                <div class="flex gap-2">
-                    <button onclick="clearAllAnimals()" class="flex-1 bg-gray-800 hover:bg-gray-700 py-3 rounded-xl text-sm transition-all">全部清除</button>
-                    <button id="btn-next" disabled class="flex-[2] bg-fuchsia-600 hover:bg-fuchsia-500 py-3 rounded-xl font-bold disabled:opacity-30 transition-all">下一步</button>
-                </div>
+                <div id="animal-grid" class="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto p-2 bg-black/20 rounded-xl custom-scrollbar mb-4"></div>
+                <button id="btn-next" disabled class="w-full bg-fuchsia-600 py-3 rounded-xl font-bold disabled:opacity-30">下一步</button>
             </div>
-
-            <div id="login-step-2" class="hidden animate-in fade-in">
-                <div class="space-y-4">
-                    <div id="id-preview" class="text-center text-4xl mb-2 tracking-widest"></div>
-                    <div class="space-y-1">
-                        <label class="text-xs text-gray-500 ml-1">PIN 碼 (密碼)</label>
-                        <input type="password" id="login-pin" pattern="\[0-9]*" inputmode="numeric" placeholder="4-8 位數字" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center focus:border-fuchsia-500 outline-none">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-xs text-gray-500 ml-1">顯示暱稱</label>
-                        <input type="text" id="login-name" placeholder="怎麼稱呼您？" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center focus:border-fuchsia-500 outline-none">
-                    </div>
-                    <div class="flex gap-2 pt-2">
-                        <button id="btn-back" class="flex-1 bg-gray-700 py-3 rounded-xl">重選</button>
-                        <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-3 rounded-xl font-bold">進入聊天室</button>
-                    </div>
+            <div id="login-step-2" class="hidden space-y-4">
+                <div id="id-preview" class="text-center text-4xl mb-2"></div>
+                <input type="password" id="login-pin" inputmode="numeric" placeholder="PIN 碼" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center outline-none">
+                <input type="text" id="login-name" placeholder="您的暱稱" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center outline-none">
+                <div class="flex gap-2">
+                    <button id="btn-back" class="flex-1 bg-gray-700 py-3 rounded-xl text-sm">重選</button>
+                    <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-3 rounded-xl font-bold">進入</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="chat-screen" class="hidden flex flex-col h-full relative">
-        <header class="h-14 md:h-16 border-b border-white/10 flex items-center px-4 bg-gray-900/80 backdrop-blur justify-between shrink-0">
-            <div class="flex items-center gap-2">
-                <span id="current-ch-emoji" class="text-xl">💬</span>
-                <h2 id="current-ch-name" class="font-bold truncate max-w-[150px]">一般閒聊</h2>
-            </div>
-            <button onclick="toggleLogoutMenu()" class="w-8 h-8 rounded-full bg-fuchsia-600 flex items-center justify-center text-sm" id="header-avatar">🐶</button>
-        </header>
-
-        <div id="logout-menu" class="hidden absolute top-16 right-4 z-40 bg-gray-800 border border-white/10 p-2 rounded-xl shadow-2xl">
-            <button id="btn-logout" class="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm w-full">
-                <i data-lucide="log-out" class="w-4 h-4"></i> 登出帳號
-            </button>
-        </div>
+    <div id="chat-screen" class="hidden flex h-screen overflow-hidden">
         
-        <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-900">
-            </div>
-
-        <div class="p-3 md:p-4 border-t border-white/10 bg-gray-900 shrink-0">
-            <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
-                <input type="text" id="msg-input" placeholder="說點什麼..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-2.5 outline-none focus:border-fuchsia-500 transition-all text-sm">
-                <button type="submit" class="bg-fuchsia-600 text-white p-2.5 rounded-full hover:bg-fuchsia-500 active:scale-90 transition-all">
-                    <i data-lucide="send" class="w-5 h-5"></i>
+        <main class="flex-1 flex flex-col bg-gray-900 border-r border-white/10">
+            <header class="h-16 border-b border-white/10 flex items-center px-4 bg-gray-900 justify-between">
+                <div class="flex items-center gap-2">
+                    <span id="header-avatar" class="text-xl">🐶</span>
+                    <div>
+                        <h2 id="current-ch-name" class="font-bold text-sm">暱稱</h2>
+                        <p id="display-date" class="text-[10px] text-fuchsia-400 font-mono"></p>
+                    </div>
+                </div>
+                <button id="mobile-date-btn" class="md:hidden p-2 bg-gray-800 rounded-lg">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
                 </button>
-            </form>
-        </div>
+            </header>
+            
+            <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"></div>
+
+            <div class="p-4 border-t border-white/10">
+                <form id="chat-form" class="flex gap-2 max-w-4xl mx-auto">
+                    <input type="text" id="msg-input" placeholder="輸入訊息..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-2 outline-none focus:border-fuchsia-500 text-sm">
+                    <button type="submit" class="bg-fuchsia-600 p-2.5 rounded-full"><i data-lucide="send" class="w-5 h-5"></i></button>
+                </form>
+            </div>
+        </main>
+
+        <aside id="side-menu" class="hidden md:flex w-64 bg-black/40 backdrop-blur flex-col shrink-0">
+            <div class="p-4 border-b border-white/10 font-bold flex items-center gap-2">
+                <i data-lucide="database" class="w-4 h-4"></i> 歷史紀錄
+            </div>
+            <div class="p-4">
+                <label class="text-xs text-gray-500 mb-2 block">切換聊天日期</label>
+                <input type="text" id="date-picker" class="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none text-center cursor-pointer hover:bg-gray-700 transition-all">
+            </div>
+            <div class="mt-auto p-4 border-t border-white/10">
+                <button id="btn-logout" class="w-full flex items-center justify-center gap-2 py-2 text-red-400 bg-red-400/10 rounded-lg text-xs">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> 登出
+                </button>
+            </div>
+        </aside>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
@@ -110,50 +103,46 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐼", "🐨", "🐔", "🐺", "🦓", "🐘"];
+        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐺", "🦓"];
 
         let selectedAnimals = [];
         let currentUserProfile = null;
+        let selectedDate = new Date().toISOString().split('T')[0]; // 格式: YYYY-MM-DD
+        let unsubscribeMessages = null;
 
-        // --- 介面控制 ---
-        window.removeAnimal = (index) => {
-            if (selectedAnimals[index]) {
-                selectedAnimals.splice(index, 1);
-                updateAnimalSlots();
+        // --- 初始化日期選擇器 ---
+        const fp = flatpickr("#date-picker", {
+            defaultValue: "today",
+            maxDate: "today",
+            onChange: (selectedDates, dateStr) => {
+                selectedDate = dateStr;
+                updateDateDisplay();
+                initMessages(); // 切換日期重新監聽
+                if(window.innerWidth < 768) document.getElementById('side-menu').classList.add('hidden');
             }
-        };
+        });
 
-        window.clearAllAnimals = () => {
-            selectedAnimals = [];
-            updateAnimalSlots();
-        };
-
-        function updateAnimalSlots() {
-            const slots = document.querySelectorAll('.selected-slot');
-            slots.forEach((slot, i) => {
-                slot.innerText = selectedAnimals[i] || "";
-                slot.classList.toggle('border-fuchsia-500', !!selectedAnimals[i]);
-                slot.classList.toggle('bg-fuchsia-600/20', !!selectedAnimals[i]);
-            });
-            document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
+        function updateDateDisplay() {
+            document.getElementById('display-date').innerText = `📅 ${selectedDate}`;
         }
 
-        // 生成動物按鈕
+        // --- 登入邏輯 (維持原有) ---
         const grid = document.getElementById('animal-grid');
         ANIMALS.forEach(a => {
             const btn = document.createElement('button');
-            btn.className = "animal-btn text-3xl p-2 rounded-xl hover:bg-white/10 transition-all";
+            btn.className = "text-2xl p-2 rounded-xl hover:bg-white/10";
             btn.innerText = a;
-            btn.onclick = () => {
-                if (selectedAnimals.length < 3) {
-                    selectedAnimals.push(a);
-                    updateAnimalSlots();
-                }
-            };
+            btn.onclick = () => { if(selectedAnimals.length < 3) { selectedAnimals.push(a); updateAnimalSlots(); }};
             grid.appendChild(btn);
         });
 
-        // 登入流程
+        window.removeAnimal = (i) => { selectedAnimals.splice(i, 1); updateAnimalSlots(); };
+        function updateAnimalSlots() {
+            const slots = document.querySelectorAll('.selected-slot');
+            slots.forEach((s, i) => s.innerText = selectedAnimals[i] || "");
+            document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
+        }
+
         document.getElementById('btn-next').onclick = () => {
             document.getElementById('login-step-1').classList.add('hidden');
             document.getElementById('login-step-2').classList.remove('hidden');
@@ -169,59 +158,56 @@
             const pin = document.getElementById('login-pin').value;
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-
-            if(pin.length < 4) return alert("PIN 碼至少需 4 位數");
-            
+            if(pin.length < 4) return alert("PIN需4位數");
             try {
                 const userRef = doc(db, 'users', animalId);
                 const userSnap = await getDoc(userRef);
-                
                 if (!auth.currentUser) await signInAnonymously(auth);
-
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pin) return alert("密碼錯誤，此組合已被使用");
+                    if (userSnap.data().pin !== pin) return alert("PIN錯誤");
                 } else {
-                    if (!name) return alert("初次登入請輸入暱稱");
-                    await setDoc(userRef, { name, pin, animalId, animals: selectedAnimals, createdAt: Date.now() });
+                    if (!name) return alert("請輸入暱稱");
+                    await setDoc(userRef, { name, pin, animalId, animals: selectedAnimals });
                 }
-                
                 localStorage.setItem('chat_animal_id', animalId);
                 loadChat(animalId);
-            } catch (e) { alert("登入失敗: " + e.message); }
+            } catch (e) { alert(e.message); }
         };
 
-        async function loadChat(animalId) {
-            const userSnap = await getDoc(doc(db, 'users', animalId));
-            if (!userSnap.exists()) return;
-            currentUserProfile = userSnap.data();
-            
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('chat-screen').classList.remove('hidden');
-            document.getElementById('header-avatar').innerText = currentUserProfile.animals[0];
-            document.getElementById('current-ch-name').innerText = currentUserProfile.name;
-            
-            initMessages();
-        }
-
+        // --- 核心：訊息處理與日期分區 ---
         function initMessages() {
-            const q = query(collection(db, 'messages'), orderBy('timestamp', 'desc'), limit(50));
+            if (unsubscribeMessages) unsubscribeMessages(); // 取消之前的監聽
+
             const container = document.getElementById('messages-container');
-            
-            onSnapshot(q, (snapshot) => {
-                container.innerHTML = "";
-                // 因為是 desc 排序（為了拿最新50條），顯示時要反轉回來
-                const docs = snapshot.docs.reverse();
-                docs.forEach(d => {
+            container.innerHTML = `<div class="text-center text-xs text-gray-600 py-10">正在載入 ${selectedDate} 的訊息...</div>`;
+
+            // 查詢條件：當前選擇的日期
+            const q = query(
+                collection(db, 'messages'), 
+                where('dateTag', '==', selectedDate),
+                orderBy('timestamp', 'asc')
+            );
+
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                container.innerHTML = snapshot.empty ? `<div class="text-center text-xs text-gray-600 py-10">📅 ${selectedDate} 尚無訊息</div>` : "";
+                snapshot.forEach(d => {
                     const msg = d.data();
                     const isMe = msg.senderId === currentUserProfile.animalId;
+                    
+                    // 格式化時間 (HH:mm)
+                    const timeStr = new Date(msg.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
                     const msgDiv = document.createElement('div');
                     msgDiv.className = `flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
-                        <div class="w-8 h-8 rounded-full bg-gray-800 flex shrink-0 items-center justify-center text-sm border border-white/5">${msg.senderAnimal}</div>
-                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
-                            <span class="text-[10px] text-gray-500 mb-0.5 px-1">${msg.senderName}</span>
-                            <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-fuchsia-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'} shadow-sm">
-                                ${msg.text}
+                        <div class="w-8 h-8 rounded-full bg-gray-800 flex shrink-0 items-center justify-center text-sm">${msg.senderAnimal}</div>
+                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]">
+                            <span class="text-[9px] text-gray-500 mb-0.5">${msg.senderName}</span>
+                            <div class="flex items-end gap-1 ${isMe ? 'flex-row-reverse' : ''}">
+                                <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-fuchsia-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'} shadow-sm">
+                                    ${msg.text}
+                                </div>
+                                <span class="text-[8px] text-gray-600 mb-1 font-mono">${timeStr}</span>
                             </div>
                         </div>
                     `;
@@ -237,24 +223,48 @@
             const text = input.value.trim();
             if(!text) return;
             
+            // 如果是在看「歷史日期」，發送訊息會自動跳回「今天」
+            const today = new Date().toISOString().split('T')[0];
+            if(selectedDate !== today) {
+                if(!confirm("您正在瀏覽歷史紀錄，發送訊息將會跳回今日聊天室，確定嗎？")) return;
+                selectedDate = today;
+                fp.setDate(today);
+                updateDateDisplay();
+                initMessages();
+            }
+
             input.value = "";
             await addDoc(collection(db, 'messages'), {
                 text,
                 senderId: currentUserProfile.animalId,
                 senderName: currentUserProfile.name,
                 senderAnimal: currentUserProfile.animals[0],
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                dateTag: today // 存入日期標籤用於篩選
             });
         };
 
-        window.toggleLogoutMenu = () => {
-            document.getElementById('logout-menu').classList.toggle('hidden');
+        // --- 其他控制 ---
+        async function loadChat(animalId) {
+            const userSnap = await getDoc(doc(db, 'users', animalId));
+            currentUserProfile = userSnap.data();
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            document.getElementById('header-avatar').innerText = currentUserProfile.animals[0];
+            document.getElementById('current-ch-name').innerText = currentUserProfile.name;
+            updateDateDisplay();
+            initMessages();
+        }
+
+        document.getElementById('mobile-date-btn').onclick = () => {
+            const menu = document.getElementById('side-menu');
+            menu.classList.toggle('hidden');
+            menu.classList.toggle('fixed');
+            menu.classList.toggle('inset-0');
+            menu.classList.toggle('z-40');
         };
 
-        document.getElementById('btn-logout').onclick = () => {
-            localStorage.removeItem('chat_animal_id');
-            location.reload();
-        };
+        document.getElementById('btn-logout').onclick = () => { localStorage.removeItem('chat_animal_id'); location.reload(); };
 
         onAuthStateChanged(auth, (user) => {
             const savedId = localStorage.getItem('chat_animal_id');
