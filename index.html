@@ -1,511 +1,369 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>線上聊天室</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script type="importmap">
-    {
-        "imports": {
-            "react": "https://esm.sh/react@18.2.0",
-            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-            "lucide-react": "https://esm.sh/lucide-react@0.292.0",
-            
-            "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
-            "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
-            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>線上聊天室</title>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase SDK (模組版) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, writeBatch, where } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
+      authDomain: "chatroom-89cc9.firebaseapp.com",
+      projectId: "chatroom-89cc9",
+      storageBucket: "chatroom-89cc9.firebasestorage.app",
+      messagingSenderId: "631226685830",
+      appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407",
+      measurementId: "G-BEMTWM3XD5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = "chatroom-89cc9"; // 固定你的 project ID 當作 appId
+
+    // 全域變數
+    let currentUser = null;
+    let userProfile = null;
+    let animalId = localStorage.getItem(`chat_app_animal_id_${appId}`);
+    let channels = [];
+    let currentChannelId = "general";
+    let allUsers = {}; // key: animalId → user data
+
+    const ALL_ANIMALS = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦄","🐙"];
+
+    // ==================== 工具函式 ====================
+    function $(selector) { return document.querySelector(selector); }
+    function $$(selector) { return Array.from(document.querySelectorAll(selector)); }
+
+    function showScreen(id) {
+      $$('.screen').forEach(s => s.classList.add('hidden'));
+      $(`#${id}`).classList.remove('hidden');
     }
-    </script>
 
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    function formatTime(ts) {
+      if (!ts) return '';
+      return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
 
-    <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 100, 100, 0.4); border-radius: 10px; }
-        
-        body { margin: 0; overflow: hidden; }
+    function createAvatar(url, fallback) {
+      const div = document.createElement('div');
+      div.className = "w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xl border border-white/10";
+      if (url) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = "w-full h-full rounded-full object-cover";
+        img.onerror = () => div.innerHTML = fallback;
+        div.appendChild(img);
+      } else {
+        div.textContent = fallback;
+      }
+      return div;
+    }
 
-        /* 替代 Framer Motion 的動畫效果 */
-        .animate-scale-in {
-            animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    // ==================== 登入相關 ====================
+    async function login(animals, pin, name = '') {
+      const targetId = animals.join('');
+      try {
+        if (!auth.currentUser) await signInAnonymously(auth);
+
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', targetId);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.pin !== pin) throw new Error("PIN 錯誤");
+          if (data.kickedUntil && data.kickedUntil > Date.now()) {
+            throw new Error(`已被踢出至 ${new Date(data.kickedUntil).toLocaleString()}`);
+          }
+          await updateDoc(userRef, { uid: auth.currentUser.uid, lastSeenAt: serverTimestamp() });
+        } else {
+          if (!name.trim()) throw new Error("首次登入請輸入暱稱");
+          const isFirst = !(await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'))).exists();
+          await setDoc(userRef, {
+            animalId: targetId,
+            animals,
+            pin,
+            name: name.trim(),
+            avatarUrl: "",
+            role: isFirst ? 'admin' : 'user',
+            uid: auth.currentUser.uid,
+            createdAt: serverTimestamp(),
+            lastSeenAt: serverTimestamp()
+          });
+          if (isFirst) {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'), { initialized: true });
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', 'general'), {
+              name: "💬 一般閒聊", emoji: "💬", createdAt: serverTimestamp()
+            });
+          }
         }
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-out forwards;
-        }
-        @keyframes scaleIn {
-            0% { transform: scale(0.9); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes fadeIn {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
-        }
-    </style>
+        localStorage.setItem(`chat_app_animal_id_${appId}`, targetId);
+        location.reload(); // 簡單重整進入聊天室
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // ==================== 初始化 ====================
+    onAuthStateChanged(auth, async (user) => {
+      if (user) currentUser = user;
+      if (animalId && currentUser) {
+        const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', animalId);
+        onSnapshot(profileRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.kickedUntil && data.kickedUntil > Date.now()) {
+              showScreen('kicked-screen');
+              $('#kicked-until').textContent = new Date(data.kickedUntil).toLocaleString();
+              return;
+            }
+            userProfile = { id: animalId, ...data };
+            initChatRoom();
+          } else {
+            localStorage.removeItem(`chat_app_animal_id_${appId}`);
+            showScreen('login-screen');
+          }
+        });
+      } else {
+        showScreen('login-screen');
+      }
+    });
+
+    // ==================== 聊天室主邏輯 ====================
+    function initChatRoom() {
+      showScreen('chat-screen');
+
+      // 頻道列表
+      onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'channels'), orderBy('createdAt')), (snap) => {
+        channels = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        renderChannels();
+        if (!channels.find(c => c.id === currentChannelId)) currentChannelId = channels[0]?.id || 'general';
+        renderMessages();
+      });
+
+      // 所有使用者（用於即時頭像、名稱）
+      onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+        allUsers = {};
+        snap.forEach(d => allUsers[d.id] = {id: d.id, ...d.data()});
+        renderMembers();
+        renderMessages(); // 更新名稱/頭像
+      });
+
+      // 訊息
+      function renderMessages() {
+        const container = $('#messages');
+        container.innerHTML = '';
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'messages'),
+                        where('channelId', '==', currentChannelId),
+                        orderBy('timestamp'));
+        onSnapshot(q, (snap) => {
+          container.innerHTML = '';
+          snap.forEach(doc => {
+            const msg = {id: doc.id, ...doc.data()};
+            const sender = allUsers[msg.senderId] || {name: msg.senderName, avatarUrl: msg.senderAvatarUrl};
+            const isMe = msg.senderId === userProfile.id;
+            const canDelete = isMe || userProfile.role === 'admin';
+
+            const bubble = document.createElement('div');
+            bubble.className = `flex gap-3 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
+
+            const avatar = createAvatar(sender.avatarUrl, msg.senderAnimal || sender.animals?.[0]);
+            bubble.appendChild(avatar);
+
+            const content = document.createElement('div');
+            content.className = `max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`;
+
+            const header = document.createElement('div');
+            header.className = "flex items-center gap-2 mb-1";
+            header.innerHTML = `<span class="text-sm font-bold">${sender.name || '未知'}</span><span class="text-xs opacity-60">${formatTime(msg.timestamp)}</span>`;
+            content.appendChild(header);
+
+            const textDiv = document.createElement('div');
+            textDiv.className = `p-3 rounded-2xl ${isMe ? 'bg-fuchsia-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`;
+            textDiv.textContent = msg.text;
+            if (canDelete) {
+              const delBtn = document.createElement('button');
+              delBtn.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
+              delBtn.className = "absolute -top-2 -right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100";
+              delBtn.onclick = () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', msg.id));
+              textDiv.className += " relative group";
+              textDiv.appendChild(delBtn);
+            }
+            content.appendChild(textDiv);
+            bubble.appendChild(content);
+            container.appendChild(bubble);
+            lucide.createIcons();
+          });
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+
+      // 發送訊息
+      $('#send-btn').onclick = async () => {
+        const input = $('#message-input');
+        const text = input.value.trim();
+        if (!text) return;
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+          text,
+          channelId: currentChannelId,
+          senderId: userProfile.id,
+          senderName: userProfile.name,
+          senderAvatarUrl: userProfile.avatarUrl || "",
+          senderAnimal: userProfile.animals[0],
+          timestamp: Date.now()
+        });
+        input.value = '';
+      };
+
+      $('#message-input').addEventListener('keypress', e => { if (e.key === 'Enter') $('#send-btn').click(); });
+    }
+
+    function renderChannels() {
+      const list = $('#channel-list');
+      list.innerHTML = '';
+      channels.forEach(ch => {
+        const btn = document.createElement('button');
+        btn.className = `w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${ch.id === currentChannelId ? 'bg-fuchsia-600 text-white' : 'text-gray-400 hover:bg-white/5'}`;
+        btn.innerHTML = `<span class="text-lg">${ch.emoji}</span><span>${ch.name}</span>`;
+        btn.onclick = () => {
+          currentChannelId = ch.id;
+          renderChannels();
+          renderMessages();
+        };
+        list.appendChild(btn);
+      });
+    }
+
+    function renderMembers() {
+      const list = $('#member-list');
+      list.innerHTML = '';
+      Object.values(allUsers).sort((a,b) => (b.lastSeenAt?.seconds || 0) - (a.lastSeenAt?.seconds || 0)).forEach(u => {
+        const isMe = u.id === userProfile.id;
+        const isOnline = Date.now() - (u.lastSeenAt?.seconds * 1000 || 0) < 180000;
+        const item = document.createElement('div');
+        item.className = "flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5";
+        item.appendChild(createAvatar(u.avatarUrl, u.animals?.[0]));
+        item.innerHTML += `
+          <div>
+            <div class="text-sm font-medium">${u.name} ${u.role==='admin'?'<span class="text-xs bg-red-600 text-white px-1 rounded">ADM</span>':''}</div>
+            <div class="text-xs opacity-60">${isMe?'您自己':isOnline?'● 線上':'離線'}</div>
+          </div>`;
+        list.appendChild(item);
+      });
+    }
+
+    // ==================== 登入畫面邏輯 ====================
+    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const animals = $$('#animal-selection .selected').map(el => el.textContent);
+      const pin = $('#pin-input').value;
+      const name = $('#name-input').value;
+      if (animals.length !== 3) return alert("請選擇 3 隻動物");
+      await login(animals, pin, name);
+    });
+
+    $$('#animal-grid button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selected = $$('#animal-selection .selected');
+        if (selected.length >= 3 && !btn.classList.contains('selected')) return;
+        btn.classList.toggle('selected');
+        const display = $('#animal-selection');
+        display.innerHTML = '';
+        $$('#animal-grid .selected').slice(0,3).forEach((b,i) => {
+          const span = document.createElement('span');
+          span.textContent = b.textContent;
+          span.className = "text-4xl";
+          display.appendChild(span);
+        });
+      });
+    });
+
+    $('#logout-btn')?.addEventListener('click', () => {
+      localStorage.removeItem(`chat_app_animal_id_${appId}`);
+      location.reload();
+    });
+  </script>
+
+  <style>
+    body { margin:0; font-family:system-ui,sans-serif; background:#111; color:#eee; min-height:100vh; }
+    .hidden { display:none !important; }
+    .screen { min-height:100vh; }
+    #login-screen { display:flex; align-items:center; justify-content:center; background:#111; }
+    .card { background:rgba(0,0,0,0.4); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.1); border-radius:1.5rem; padding:2rem; max-width:420px; width:100%; }
+    #animal-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; }
+    #animal-grid button { font-size:2rem; padding:1rem; background:rgba(255,255,255,0.05); border-radius:0.75rem; }
+    #animal-grid button.selected { background:#d946ef; }
+    #chat-screen { display:grid; grid-template-columns:260px 1fr; height:100vh; }
+    @media (max-width:768px) { #chat-screen { grid-template-columns:1fr; } }
+    #sidebar { background:rgba(0,0,0,0.6); border-right:1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; }
+    #messages { overflow-y:auto; padding:1rem; }
+    #input-area { padding:1rem; background:rgba(0,0,0,0.4); border-top:1px solid rgba(255,255,255,0.1); }
+    input, button { background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:0.75rem; }
+    button:hover { background:rgba(255,255,255,0.1); }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <!-- 登入畫面 -->
+  <div id="login-screen" class="screen">
+    <div class="card">
+      <h1 class="text-3xl font-bold text-center mb-6 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">線上聊天室</h1>
+      <form id="login-form">
+        <div class="mb-6">
+          <p class="text-center mb-4">請選擇 3 隻動物作為登入 ID</p>
+          <div id="animal-selection" class="flex justify-center gap-4 text-5xl min-h-[80px] items-center"></div>
+          <div id="animal-grid" class="mt-4"></div>
+        </div>
+        <div class="space-y-4">
+          <input type="text" id="pin-input" placeholder="PIN 碼（4-8位數字）" maxlength="8" pattern="\d{4,8}" required class="w-full px-4 py-3 text-center text-xl">
+          <input type="text" id="name-input" placeholder="暱稱（首次登入必填）" class="w-full px-4 py-3 text-center">
+          <button type="submit" class="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-3 rounded-xl font-bold">進入聊天室</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    <script type="text/babel" data-type="module">
-        import React, { useState, useRef, useEffect, useMemo } from 'react';
-        import { createRoot } from 'react-dom/client';
-        
-        // Firebase
-        import { initializeApp } from 'firebase/app';
-        import { 
-            getAuth, signInAnonymously, onAuthStateChanged, updateProfile 
-        } from 'firebase/auth';
-        import { 
-            getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, 
-            doc, setDoc, getDoc, updateDoc, deleteDoc, writeBatch 
-        } from 'firebase/firestore';
-        
-        // Icons
-        import { 
-            Send, Settings, Trash2, UserX, Shield, Plus, LogOut, Menu, X, User,
-            Loader2, Users, MessageSquare, Clock, UserMinus, AlertTriangle, 
-            CheckCircle, AlertCircle, Edit, Unlock, Save, Type, Image as ImageIcon, Sun, Moon
-        } from 'lucide-react';
+  <!-- 被踢畫面 -->
+  <div id="kicked-screen" class="screen hidden flex flex-col items-center justify-center">
+    <h1 class="text-3xl font-bold text-red-500">您已被暫時踢出</h1>
+    <p class="mt-4">解鎖時間：<span id="kicked-until"></span></p>
+    <button onclick="localStorage.clear();location.reload()" class="mt-6 px-6 py-3 bg-gray-800 rounded-xl">返回</button>
+  </div>
 
-        // --- 1. 設定區域 ---
-        const USER_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
-            authDomain: "chatroom-89cc9.firebaseapp.com",
-            projectId: "chatroom-89cc9",
-            storageBucket: "chatroom-89cc9.firebasestorage.app",
-            messagingSenderId: "631226685830",
-            appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407",
-            measurementId: "G-BEMTWM3XD5"
-        };
+  <!-- 聊天室主畫面 -->
+  <div id="chat-screen" class="screen hidden">
+    <div id="sidebar">
+      <div class="p-4 border-b border-white/10 flex justify-between items-center">
+        <h2 class="font-bold text-fuchsia-500">線上聊天室</h2>
+        <button id="logout-btn" class="text-red-500"><i data-lucide="log-out"></i></button>
+      </div>
+      <div id="channel-list" class="flex-1 overflow-y-auto p-4"></div>
+      <div id="member-list" class="p-4 border-t border-white/10"></div>
+    </div>
+    <div class="flex flex-col">
+      <div id="messages" class="flex-1"></div>
+      <div id="input-area" class="flex gap-2">
+        <input id="message-input" type="text" placeholder="輸入訊息..." class="flex-1 px-4 py-3">
+        <button id="send-btn" class="bg-fuchsia-600 hover:bg-fuchsia-500 px-6 rounded-xl"><i data-lucide="send"></i></button>
+      </div>
+    </div>
+  </div>
 
-        const ALL_ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦄", "🐙"];
-
-        // --- 2. 初始化 Firebase ---
-        const app = initializeApp(USER_FIREBASE_CONFIG);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = 'github-chat-prod'; 
-
-        const getAnimalId = (animals) => animals.join('');
-
-        // --- 3. UI 元件 ---
-
-        const Avatar = ({ url, fallbackAnimal, size = "md", className = "" }) => {
-            const sizeClasses = { sm: "w-8 h-8 text-sm", md: "w-10 h-10 text-lg", lg: "w-16 h-16 text-3xl", xl: "w-24 h-24 text-5xl" };
-            const [imgError, setImgError] = useState(false);
-            useEffect(() => setImgError(false), [url]);
-            if (url && !imgError) {
-                return <img src={url} alt="A" className={`${sizeClasses[size]} rounded-full object-cover border border-white/10 ${className}`} onError={() => setImgError(true)} />;
-            }
-            return <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center border border-white/10 ${className}`}>{fallbackAnimal || <User className="opacity-50" />}</div>;
-        };
-
-        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, isDangerous }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-gray-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-xl font-bold mb-2 text-white flex items-center gap-2">
-                            {isDangerous && <AlertTriangle className="text-red-500" />} {title}
-                        </h3>
-                        <p className="text-gray-300 mb-6 whitespace-pre-wrap">{message}</p>
-                        <div className="flex gap-3">
-                            <button onClick={onCancel} className="flex-1 px-4 py-3 rounded-xl bg-gray-700 text-white hover:bg-gray-600 transition">取消</button>
-                            <button onClick={onConfirm} className={`flex-1 px-4 py-3 rounded-xl text-white font-bold transition ${isDangerous ? 'bg-red-600 hover:bg-red-500' : 'bg-fuchsia-600 hover:bg-fuchsia-500'}`}>確定</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const AlertModal = ({ isOpen, message, type = 'error', onClose }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-gray-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center animate-scale-in">
-                        <div className="mb-4 flex justify-center">
-                            {type === 'success' ? <CheckCircle size={48} className="text-green-500"/> : <AlertCircle size={48} className="text-red-500"/>}
-                        </div>
-                        <p className="text-white text-lg mb-6">{message}</p>
-                        <button onClick={onClose} className="w-full px-4 py-3 rounded-xl bg-gray-700 text-white">知道了</button>
-                    </div>
-                </div>
-            );
-        };
-
-        const useThemeStyles = (theme) => useMemo(() => {
-            const isDark = theme === 'dark';
-            return {
-                bg: isDark ? 'bg-gray-900' : 'bg-gray-50',
-                text: isDark ? 'text-gray-100' : 'text-gray-900',
-                textMuted: isDark ? 'text-gray-400' : 'text-gray-500',
-                border: isDark ? 'border-white/10' : 'border-black/10',
-                panel: isDark ? 'bg-black/40' : 'bg-white/80',
-                sidebar: isDark ? 'bg-black/80' : 'bg-white/90',
-                input: isDark ? 'bg-black/50' : 'bg-white',
-                hover: isDark ? 'hover:bg-white/5' : 'hover:bg-black/5',
-                card: isDark ? 'bg-white/5' : 'bg-white shadow-sm border border-gray-100',
-                bubbleMe: 'bg-fuchsia-600 text-white',
-                bubbleOther: isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
-            };
-        }, [theme]);
-
-        // --- 4. 主程式 ---
-        const App = () => {
-            const [user, setUser] = useState(null); 
-            const [animalId, setAnimalId] = useState(null); 
-            const [userProfile, setUserProfile] = useState(null);
-            const [authStep, setAuthStep] = useState('loading'); 
-            const [error, setError] = useState('');
-            const [kickInfo, setKickInfo] = useState(null);
-            const [appName, setAppName] = useState("線上聊天室");
-
-            useEffect(() => {
-                const unsubSys = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'), (docSnap) => {
-                    if (docSnap.exists() && docSnap.data().appName) setAppName(docSnap.data().appName);
-                });
-
-                signInAnonymously(auth).catch(e => console.error(e));
-
-                const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
-                    if (fbUser) {
-                        setUser(fbUser);
-                        const cachedId = localStorage.getItem(`chat_id_${appId}`);
-                        if (cachedId) setAnimalId(cachedId);
-                        else setAuthStep('login');
-                    } else {
-                        setAuthStep('login');
-                    }
-                });
-
-                return () => { unsubAuth(); unsubSys(); };
-            }, []);
-
-            useEffect(() => {
-                if (!user || !animalId) return;
-                setAuthStep('loading');
-                const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', animalId), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        if (data.kickedUntil && data.kickedUntil > Date.now()) {
-                            setKickInfo(data.kickedUntil);
-                            setAuthStep('kicked');
-                        } else {
-                            setUserProfile({ theme: 'dark', avatarUrl: '', ...data, id: docSnap.id });
-                            setAuthStep('chat');
-                        }
-                    } else {
-                        handleLogout();
-                    }
-                }, () => handleLogout());
-                return () => unsub();
-            }, [user, animalId]);
-
-            const handleLogin = async (animals, pin, name = '') => {
-                setError('');
-                const targetId = getAnimalId(animals);
-                try {
-                    let currentUser = auth.currentUser || (await signInAnonymously(auth)).user;
-                    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'users', targetId);
-                    const snap = await getDoc(ref);
-
-                    if (snap.exists()) {
-                        if (snap.data().pin !== pin) throw new Error("PIN 碼錯誤！");
-                        await updateDoc(ref, { uid: currentUser.uid, lastSeenAt: serverTimestamp() });
-                    } else {
-                        if (!name.trim()) throw new Error("初次使用請輸入暱稱！");
-                        const sysRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config');
-                        const isFirst = !(await getDoc(sysRef)).exists();
-                        await setDoc(ref, {
-                            animalId: targetId, animals, pin, name: name.trim(), avatarUrl: "", 
-                            theme: 'dark', role: isFirst ? 'admin' : 'user', uid: currentUser.uid, 
-                            createdAt: serverTimestamp(), lastSeenAt: serverTimestamp()
-                        });
-                        if (isFirst) {
-                            await setDoc(sysRef, { initialized: true, adminId: targetId, appName: "線上聊天室" });
-                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', 'general'), { name: "💬 一般閒聊", emoji: "💬", createdAt: serverTimestamp() });
-                        }
-                    }
-                    localStorage.setItem(`chat_id_${appId}`, targetId);
-                    setAnimalId(targetId); 
-                } catch (e) { setError(e.message); throw e; }
-            };
-
-            const handleLogout = () => {
-                localStorage.removeItem(`chat_id_${appId}`);
-                setAnimalId(null);
-                setUserProfile(null);
-                setAuthStep('login');
-            };
-
-            if (authStep === 'loading') return <div className="h-screen bg-gray-900 flex items-center justify-center text-fuchsia-500"><Loader2 className="animate-spin" size={48}/></div>;
-            if (authStep === 'kicked') return <KickedScreen until={kickInfo} onLogout={handleLogout} />;
-
-            return (
-                <div className={`h-screen transition-colors duration-300 ${userProfile?.theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'}`}>
-                    {authStep === 'login' ? <LoginScreen onLogin={handleLogin} error={error} appName={appName} /> : 
-                     authStep === 'chat' && userProfile ? <ChatRoom user={user} userProfile={userProfile} onLogout={handleLogout} appName={appName} /> : null}
-                </div>
-            );
-        };
-
-        const LoginScreen = ({ onLogin, error, appName }) => {
-            const [sel, setSel] = useState([]);
-            const [pin, setPin] = useState('');
-            const [name, setName] = useState('');
-            const [step, setStep] = useState(1);
-            const [loading, setLoading] = useState(false);
-
-            const toggle = (a) => { if (sel.length < 3) setSel([...sel, a]); };
-            const remove = (i) => { const n = [...sel]; n.splice(i, 1); setSel(n); };
-
-            return (
-                <div className="h-screen flex items-center justify-center p-4 bg-gray-900 text-gray-100 animate-fade-in">
-                    <div className="w-full max-w-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl animate-scale-in">
-                        <h1 className="text-3xl font-bold text-center mb-6 text-fuchsia-400">{appName}</h1>
-                        {step === 1 ? (
-                            <>
-                                <div className="flex justify-center gap-4 mb-6 min-h-[80px] items-center bg-black/30 rounded-xl p-4">
-                                    {[0, 1, 2].map(i => (
-                                        <div key={i} onClick={() => i < sel.length && remove(i)} className={`w-16 h-16 rounded-xl flex items-center justify-center text-4xl border-2 transition ${i < sel.length ? 'bg-fuchsia-600 border-fuchsia-400' : 'bg-white/5 border-dashed border-white/20'}`}>
-                                            {sel[i]}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 h-48 overflow-y-auto custom-scrollbar p-2">
-                                    {ALL_ANIMALS.map(a => (
-                                        <button key={a} onClick={() => toggle(a)} disabled={sel.length >= 3} className="text-2xl p-2 rounded-xl bg-white/5 hover:bg-white/10 transition">
-                                            {a} {sel.filter(x => x === a).length > 0 && <span className="text-[10px] bg-fuchsia-500 rounded-full px-1 align-top">✔</span>}
-                                        </button>
-                                    ))}
-                                </div>
-                                <button onClick={() => sel.length === 3 && setStep(2)} disabled={sel.length !== 3} className="w-full mt-6 bg-fuchsia-600 py-3 rounded-xl font-bold disabled:opacity-50 transition">下一步</button>
-                            </>
-                        ) : (
-                            <div className="max-w-xs mx-auto space-y-4">
-                                <div className="text-4xl text-center mb-4">{sel.join('')}</div>
-                                <input type="text" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g,'').slice(0,8))} placeholder="PIN (4-8位數字)" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-white text-xl tracking-widest outline-none focus:border-fuchsia-500"/>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="您的暱稱" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-white outline-none focus:border-fuchsia-500"/>
-                                {error && <div className="text-red-400 text-center text-sm">{error}</div>}
-                                <div className="flex gap-2">
-                                    <button onClick={() => setStep(1)} className="flex-1 bg-gray-700 py-3 rounded-xl">重選</button>
-                                    <button onClick={() => onLogin(sel, pin, name)} className="flex-[2] bg-fuchsia-600 py-3 rounded-xl font-bold">進入</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        };
-
-        const ChatRoom = ({ user, userProfile, onLogout, appName }) => {
-            const styles = useThemeStyles(userProfile.theme);
-            const [channels, setChannels] = useState([]);
-            const [currentChannelId, setCurrentChannelId] = useState('general');
-            const [messages, setMessages] = useState([]);
-            const [text, setText] = useState('');
-            const [showAdmin, setShowAdmin] = useState(false);
-            const [mobileMenu, setMobileMenu] = useState(false);
-            const [sidebarView, setSidebarView] = useState('channels');
-            const [members, setMembers] = useState([]);
-            const [allUsers, setAllUsers] = useState({});
-            const [confirm, setConfirm] = useState({ isOpen: false });
-
-            useEffect(() => onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'channels')), s => {
-                const list = s.docs.map(d => ({ id: d.id, ...d.data() }));
-                setChannels(list.sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0)));
-            }), []);
-
-            useEffect(() => {
-                if(sidebarView === 'members') onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), s => {
-                    setMembers(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(b.lastSeenAt?.seconds||0)-(a.lastSeenAt?.seconds||0)));
-                });
-            }, [sidebarView]);
-
-            useEffect(() => onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), s => {
-                const map = {}; s.forEach(d => map[d.id] = {...d.data(), id: d.id}); setAllUsers(map);
-            }), []);
-
-            useEffect(() => onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'messages')), s => {
-                setMessages(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => m.channelId === currentChannelId).sort((a,b)=>a.timestamp-b.timestamp));
-            }), [currentChannelId]);
-
-            const handleSend = async (e) => {
-                if (e) e.preventDefault();
-                if (!text.trim()) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
-                    text: text.trim(), channelId: currentChannelId, senderId: userProfile.id, senderName: userProfile.name,
-                    senderAvatarUrl: userProfile.avatarUrl, senderAnimal: userProfile.animals[0], timestamp: Date.now()
-                });
-                setText('');
-            };
-
-            const confirmDel = (id) => setConfirm({ isOpen: true, title: "刪除訊息", message: "確定刪除？", isDangerous: true, onConfirm: async () => {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', id)); setConfirm({isOpen:false});
-            }});
-
-            const curCh = channels.find(c => c.id === currentChannelId) || { name: '讀取中', emoji: '💬' };
-
-            return (
-                <div className={`flex h-screen overflow-hidden ${styles.bg} ${styles.text}`}>
-                    <ConfirmModal {...confirm} onCancel={()=>setConfirm({isOpen:false})} />
-                    
-                    {/* Sidebar */}
-                    <aside className={`fixed inset-y-0 left-0 z-20 w-64 ${styles.sidebar} border-r ${styles.border} transform transition md:relative md:translate-x-0 ${mobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
-                        <div className={`p-4 border-b ${styles.border} flex justify-between items-center`}>
-                            <h2 className="font-bold text-fuchsia-500 truncate">{appName}</h2>
-                            <button onClick={()=>setSidebarView(sidebarView==='channels'?'members':'channels')} className="p-2 hover:bg-gray-500/10 rounded"><Users size={18}/></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar h-[calc(100%-140px)]">
-                            {sidebarView === 'channels' ? channels.map(ch => (
-                                <button key={ch.id} onClick={()=>{setCurrentChannelId(ch.id); setMobileMenu(false);}} className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${currentChannelId===ch.id?'bg-fuchsia-600 text-white':styles.hover}`}>
-                                    <span>{ch.emoji}</span><span>{ch.name}</span>
-                                </button>
-                            )) : members.map(m => (
-                                <div key={m.id} className="flex items-center gap-3 px-4 py-2 rounded-xl">
-                                    <Avatar url={m.avatarUrl} fallbackAnimal={m.animals[0]} size="sm" />
-                                    <div className="truncate text-sm">{m.name}</div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className={`absolute bottom-0 w-full p-4 border-t ${styles.border}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                <Avatar url={userProfile.avatarUrl} fallbackAnimal={userProfile.animals[0]} />
-                                <div className="truncate text-xs font-bold">{userProfile.name}</div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button onClick={()=>setShowAdmin(true)} className={`p-2 rounded flex justify-center ${styles.card}`}><Settings size={16}/></button>
-                                <button onClick={onLogout} className="p-2 rounded flex justify-center bg-red-500/10 text-red-500"><LogOut size={16}/></button>
-                            </div>
-                        </div>
-                    </aside>
-
-                    <main className="flex-1 flex flex-col min-w-0">
-                        <header className={`h-16 border-b ${styles.border} ${styles.panel} flex items-center px-4 gap-3`}>
-                            <button onClick={()=>setMobileMenu(true)} className="md:hidden"><Menu/></button>
-                            <span className="text-xl">{curCh.emoji}</span><h1 className="font-bold">{curCh.name}</h1>
-                        </header>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                            {messages.map(m => {
-                                const isMe = m.senderId === userProfile.id;
-                                const sender = allUsers[m.senderId] || m;
-                                return (
-                                    <div key={m.id} className={`flex gap-3 ${isMe?'flex-row-reverse':''}`}>
-                                        <Avatar url={sender.avatarUrl} fallbackAnimal={sender.animals?.[0] || m.senderAnimal} size="sm" />
-                                        <div className={`max-w-[80%] flex flex-col ${isMe?'items-end':''}`}>
-                                            <div className="text-[10px] opacity-50 mb-1">{sender.name}</div>
-                                            <div className={`px-4 py-2 rounded-2xl relative group ${isMe?styles.bubbleMe:styles.bubbleOther}`}>
-                                                {m.text}
-                                                {(isMe || userProfile.role==='admin') && <button onClick={()=>confirmDel(m.id)} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"><X size={10}/></button>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <form onSubmit={handleSend} className="p-4 bg-black/10 flex gap-2">
-                            <input value={text} onChange={e=>setText(e.target.value)} placeholder="輸入訊息..." className={`flex-1 ${styles.input} border ${styles.border} rounded-xl px-4 py-2 outline-none focus:border-fuchsia-500 text-white`}/>
-                            <button className="bg-fuchsia-600 p-3 rounded-xl text-white"><Send/></button>
-                        </form>
-                    </main>
-
-                    {showAdmin && <AdminPanel userProfile={userProfile} isAdmin={userProfile.role==='admin'} onClose={()=>setShowAdmin(false)} currentAppName={appName} styles={styles} />}
-                </div>
-            );
-        };
-
-        const AdminPanel = ({ userProfile, isAdmin, onClose, currentAppName, styles }) => {
-            const [tab, setTab] = useState('settings');
-            const [newPin, setNewPin] = useState('');
-            const [newAvatar, setNewAvatar] = useState(userProfile.avatarUrl || '');
-            const [theme, setTheme] = useState(userProfile.theme || 'dark');
-            const [editingAppName, setEditingAppName] = useState(currentAppName);
-            const [newCh, setNewCh] = useState({ name: '', emoji: '💬' });
-            const [channels, setChannels] = useState([]);
-            const [users, setUsers] = useState([]);
-
-            useEffect(() => {
-                if(isAdmin && tab === 'channels') onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'channels'), s => setChannels(s.docs.map(d=>({id:d.id, ...d.data()}))));
-                if(isAdmin && tab === 'users') onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), s => setUsers(s.docs.map(d=>({id:d.id, ...d.data()}))));
-            }, [tab]);
-
-            const saveSelf = async () => {
-                const updates = { avatarUrl: newAvatar, theme: theme };
-                if (newPin.length >= 4) updates.pin = newPin;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userProfile.id), updates);
-                alert("已更新！");
-            };
-
-            const addCh = async () => {
-                if(!newCh.name) return;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'channels'), { ...newCh, createdAt: serverTimestamp() });
-                setNewCh({ name: '', emoji: '💬' });
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-                    <div className={`${styles.bg} ${styles.text} w-full max-w-2xl h-[80vh] rounded-2xl flex flex-col md:flex-row overflow-hidden animate-scale-in`} onClick={e=>e.stopPropagation()}>
-                        <div className={`w-full md:w-48 ${styles.sidebar} border-b md:border-b-0 md:border-r ${styles.border} p-4 flex md:flex-col gap-2`}>
-                            <button onClick={()=>setTab('settings')} className={`flex-1 p-2 rounded ${tab==='settings'?'bg-fuchsia-600 text-white':''}`}>個人</button>
-                            {isAdmin && <><button onClick={()=>setTab('channels')} className={`flex-1 p-2 rounded ${tab==='channels'?'bg-fuchsia-600 text-white':''}`}>頻道</button>
-                            <button onClick={()=>setTab('users')} className={`flex-1 p-2 rounded ${tab==='users'?'bg-fuchsia-600 text-white':''}`}>成員</button></>}
-                            <button onClick={onClose} className="p-2 md:mt-auto"><X/></button>
-                        </div>
-                        <div className="flex-1 p-6 overflow-y-auto">
-                            {tab === 'settings' && <div className="space-y-4">
-                                <h3 className="font-bold border-b pb-2">個人設定</h3>
-                                <div className="flex gap-4 items-center">
-                                    <Avatar url={newAvatar} fallbackAnimal={userProfile.animals[0]} size="lg" />
-                                    <input value={newAvatar} onChange={e=>setNewAvatar(e.target.value)} placeholder="頭像網址" className={`flex-1 ${styles.input} border p-2 rounded text-white`}/>
-                                </div>
-                                <input value={newPin} onChange={e=>setNewPin(e.target.value)} placeholder="新 PIN (不改留空)" className={`w-full ${styles.input} border p-2 rounded text-white`}/>
-                                <div className="flex gap-2">
-                                    <button onClick={()=>setTheme('dark')} className={`flex-1 p-2 rounded border ${theme==='dark'?'bg-gray-700':''}`}>暗色</button>
-                                    <button onClick={()=>setTheme('light')} className={`flex-1 p-2 rounded border ${theme==='light'?'bg-gray-200 text-black':''}`}>亮色</button>
-                                </div>
-                                <button onClick={saveSelf} className="w-full bg-fuchsia-600 text-white py-2 rounded font-bold">儲存</button>
-                            </div>}
-                            {tab === 'channels' && <div className="space-y-4">
-                                <h3 className="font-bold">頻道管理</h3>
-                                <div className="flex gap-2">
-                                    <input value={newCh.emoji} onChange={e=>setNewCh({...newCh, emoji:e.target.value})} className="w-12 border p-2 rounded text-black"/>
-                                    <input value={newCh.name} onChange={e=>setNewCh({...newCh, name:e.target.value})} placeholder="頻道名" className="flex-1 border p-2 rounded text-black"/>
-                                    <button onClick={addCh} className="bg-fuchsia-600 text-white p-2 rounded"><Plus/></button>
-                                </div>
-                                {channels.map(c => <div key={c.id} className="flex justify-between p-2 border-b">{c.emoji} {c.name} <button onClick={()=>deleteDoc(doc(db,'artifacts',appId,'public','data','channels',c.id))}><Trash2 size={16}/></button></div>)}
-                            </div>}
-                            {tab === 'users' && <div className="space-y-4">
-                                <h3 className="font-bold">成員管理</h3>
-                                {users.map(u => (
-                                    <div key={u.id} className="flex items-center gap-3 p-2 border-b">
-                                        <Avatar url={u.avatarUrl} fallbackAnimal={u.animals[0]} size="sm" />
-                                        <span className="flex-1">{u.name}</span>
-                                        {u.kickedUntil > Date.now() ? <button onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','users',u.id),{kickedUntil:0})} className="text-green-500">解封</button> :
-                                        <button onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','users',u.id),{kickedUntil:Date.now()+86400000})} className="text-red-500">封鎖</button>}
-                                    </div>
-                                ))}
-                            </div>}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const KickedScreen = ({ until, onLogout }) => (
-            <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-red-500 p-6 text-center">
-                <Clock size={64} className="mb-4" />
-                <h1 className="text-3xl font-bold mb-2">您已被封鎖</h1>
-                <p className="mb-6">解鎖時間：{new Date(until).toLocaleString()}</p>
-                <button onClick={onLogout} className="px-6 py-2 bg-gray-800 text-white rounded">登出</button>
-            </div>
-        );
-
-        const root = createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+  <script>
+    // 動態產生動物按鈕
+    const grid = document.getElementById('animal-grid');
+    const animals = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦄","🐙"];
+    animals.forEach(a => {
+      const btn = document.createElement('button');
+      btn.textContent = a;
+      grid.appendChild(btn);
+    });
+    lucide.createIcons();
+  </script>
 </body>
 </html>
