@@ -1,369 +1,1055 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>線上聊天室</title>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Firebase SDK (模組版) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, writeBatch, where } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
-      authDomain: "chatroom-89cc9.firebaseapp.com",
-      projectId: "chatroom-89cc9",
-      storageBucket: "chatroom-89cc9.firebasestorage.app",
-      messagingSenderId: "631226685830",
-      appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407",
-      measurementId: "G-BEMTWM3XD5"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const appId = "chatroom-89cc9"; // 固定你的 project ID 當作 appId
-
-    // 全域變數
-    let currentUser = null;
-    let userProfile = null;
-    let animalId = localStorage.getItem(`chat_app_animal_id_${appId}`);
-    let channels = [];
-    let currentChannelId = "general";
-    let allUsers = {}; // key: animalId → user data
-
-    const ALL_ANIMALS = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦄","🐙"];
-
-    // ==================== 工具函式 ====================
-    function $(selector) { return document.querySelector(selector); }
-    function $$(selector) { return Array.from(document.querySelectorAll(selector)); }
-
-    function showScreen(id) {
-      $$('.screen').forEach(s => s.classList.add('hidden'));
-      $(`#${id}`).classList.remove('hidden');
-    }
-
-    function formatTime(ts) {
-      if (!ts) return '';
-      return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    }
-
-    function createAvatar(url, fallback) {
-      const div = document.createElement('div');
-      div.className = "w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xl border border-white/10";
-      if (url) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.className = "w-full h-full rounded-full object-cover";
-        img.onerror = () => div.innerHTML = fallback;
-        div.appendChild(img);
-      } else {
-        div.textContent = fallback;
-      }
-      return div;
-    }
-
-    // ==================== 登入相關 ====================
-    async function login(animals, pin, name = '') {
-      const targetId = animals.join('');
-      try {
-        if (!auth.currentUser) await signInAnonymously(auth);
-
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', targetId);
-        const snap = await getDoc(userRef);
-
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.pin !== pin) throw new Error("PIN 錯誤");
-          if (data.kickedUntil && data.kickedUntil > Date.now()) {
-            throw new Error(`已被踢出至 ${new Date(data.kickedUntil).toLocaleString()}`);
-          }
-          await updateDoc(userRef, { uid: auth.currentUser.uid, lastSeenAt: serverTimestamp() });
-        } else {
-          if (!name.trim()) throw new Error("首次登入請輸入暱稱");
-          const isFirst = !(await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'))).exists();
-          await setDoc(userRef, {
-            animalId: targetId,
-            animals,
-            pin,
-            name: name.trim(),
-            avatarUrl: "",
-            role: isFirst ? 'admin' : 'user',
-            uid: auth.currentUser.uid,
-            createdAt: serverTimestamp(),
-            lastSeenAt: serverTimestamp()
-          });
-          if (isFirst) {
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'), { initialized: true });
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', 'general'), {
-              name: "💬 一般閒聊", emoji: "💬", createdAt: serverTimestamp()
-            });
-          }
-        }
-        localStorage.setItem(`chat_app_animal_id_${appId}`, targetId);
-        location.reload(); // 簡單重整進入聊天室
-      } catch (e) {
-        alert(e.message);
-      }
-    }
-
-    // ==================== 初始化 ====================
-    onAuthStateChanged(auth, async (user) => {
-      if (user) currentUser = user;
-      if (animalId && currentUser) {
-        const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', animalId);
-        onSnapshot(profileRef, (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            if (data.kickedUntil && data.kickedUntil > Date.now()) {
-              showScreen('kicked-screen');
-              $('#kicked-until').textContent = new Date(data.kickedUntil).toLocaleString();
-              return;
-            }
-            userProfile = { id: animalId, ...data };
-            initChatRoom();
-          } else {
-            localStorage.removeItem(`chat_app_animal_id_${appId}`);
-            showScreen('login-screen');
-          }
-        });
-      } else {
-        showScreen('login-screen');
-      }
-    });
-
-    // ==================== 聊天室主邏輯 ====================
-    function initChatRoom() {
-      showScreen('chat-screen');
-
-      // 頻道列表
-      onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'channels'), orderBy('createdAt')), (snap) => {
-        channels = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        renderChannels();
-        if (!channels.find(c => c.id === currentChannelId)) currentChannelId = channels[0]?.id || 'general';
-        renderMessages();
-      });
-
-      // 所有使用者（用於即時頭像、名稱）
-      onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
-        allUsers = {};
-        snap.forEach(d => allUsers[d.id] = {id: d.id, ...d.data()});
-        renderMembers();
-        renderMessages(); // 更新名稱/頭像
-      });
-
-      // 訊息
-      function renderMessages() {
-        const container = $('#messages');
-        container.innerHTML = '';
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'messages'),
-                        where('channelId', '==', currentChannelId),
-                        orderBy('timestamp'));
-        onSnapshot(q, (snap) => {
-          container.innerHTML = '';
-          snap.forEach(doc => {
-            const msg = {id: doc.id, ...doc.data()};
-            const sender = allUsers[msg.senderId] || {name: msg.senderName, avatarUrl: msg.senderAvatarUrl};
-            const isMe = msg.senderId === userProfile.id;
-            const canDelete = isMe || userProfile.role === 'admin';
-
-            const bubble = document.createElement('div');
-            bubble.className = `flex gap-3 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
-
-            const avatar = createAvatar(sender.avatarUrl, msg.senderAnimal || sender.animals?.[0]);
-            bubble.appendChild(avatar);
-
-            const content = document.createElement('div');
-            content.className = `max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`;
-
-            const header = document.createElement('div');
-            header.className = "flex items-center gap-2 mb-1";
-            header.innerHTML = `<span class="text-sm font-bold">${sender.name || '未知'}</span><span class="text-xs opacity-60">${formatTime(msg.timestamp)}</span>`;
-            content.appendChild(header);
-
-            const textDiv = document.createElement('div');
-            textDiv.className = `p-3 rounded-2xl ${isMe ? 'bg-fuchsia-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`;
-            textDiv.textContent = msg.text;
-            if (canDelete) {
-              const delBtn = document.createElement('button');
-              delBtn.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
-              delBtn.className = "absolute -top-2 -right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100";
-              delBtn.onclick = () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', msg.id));
-              textDiv.className += " relative group";
-              textDiv.appendChild(delBtn);
-            }
-            content.appendChild(textDiv);
-            bubble.appendChild(content);
-            container.appendChild(bubble);
-            lucide.createIcons();
-          });
-          container.scrollTop = container.scrollHeight;
-        });
-      }
-
-      // 發送訊息
-      $('#send-btn').onclick = async () => {
-        const input = $('#message-input');
-        const text = input.value.trim();
-        if (!text) return;
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
-          text,
-          channelId: currentChannelId,
-          senderId: userProfile.id,
-          senderName: userProfile.name,
-          senderAvatarUrl: userProfile.avatarUrl || "",
-          senderAnimal: userProfile.animals[0],
-          timestamp: Date.now()
-        });
-        input.value = '';
-      };
-
-      $('#message-input').addEventListener('keypress', e => { if (e.key === 'Enter') $('#send-btn').click(); });
-    }
-
-    function renderChannels() {
-      const list = $('#channel-list');
-      list.innerHTML = '';
-      channels.forEach(ch => {
-        const btn = document.createElement('button');
-        btn.className = `w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 ${ch.id === currentChannelId ? 'bg-fuchsia-600 text-white' : 'text-gray-400 hover:bg-white/5'}`;
-        btn.innerHTML = `<span class="text-lg">${ch.emoji}</span><span>${ch.name}</span>`;
-        btn.onclick = () => {
-          currentChannelId = ch.id;
-          renderChannels();
-          renderMessages();
-        };
-        list.appendChild(btn);
-      });
-    }
-
-    function renderMembers() {
-      const list = $('#member-list');
-      list.innerHTML = '';
-      Object.values(allUsers).sort((a,b) => (b.lastSeenAt?.seconds || 0) - (a.lastSeenAt?.seconds || 0)).forEach(u => {
-        const isMe = u.id === userProfile.id;
-        const isOnline = Date.now() - (u.lastSeenAt?.seconds * 1000 || 0) < 180000;
-        const item = document.createElement('div');
-        item.className = "flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5";
-        item.appendChild(createAvatar(u.avatarUrl, u.animals?.[0]));
-        item.innerHTML += `
-          <div>
-            <div class="text-sm font-medium">${u.name} ${u.role==='admin'?'<span class="text-xs bg-red-600 text-white px-1 rounded">ADM</span>':''}</div>
-            <div class="text-xs opacity-60">${isMe?'您自己':isOnline?'● 線上':'離線'}</div>
-          </div>`;
-        list.appendChild(item);
-      });
-    }
-
-    // ==================== 登入畫面邏輯 ====================
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const animals = $$('#animal-selection .selected').map(el => el.textContent);
-      const pin = $('#pin-input').value;
-      const name = $('#name-input').value;
-      if (animals.length !== 3) return alert("請選擇 3 隻動物");
-      await login(animals, pin, name);
-    });
-
-    $$('#animal-grid button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const selected = $$('#animal-selection .selected');
-        if (selected.length >= 3 && !btn.classList.contains('selected')) return;
-        btn.classList.toggle('selected');
-        const display = $('#animal-selection');
-        display.innerHTML = '';
-        $$('#animal-grid .selected').slice(0,3).forEach((b,i) => {
-          const span = document.createElement('span');
-          span.textContent = b.textContent;
-          span.className = "text-4xl";
-          display.appendChild(span);
-        });
-      });
-    });
-
-    $('#logout-btn')?.addEventListener('click', () => {
-      localStorage.removeItem(`chat_app_animal_id_${appId}`);
-      location.reload();
-    });
-  </script>
-
-  <style>
-    body { margin:0; font-family:system-ui,sans-serif; background:#111; color:#eee; min-height:100vh; }
-    .hidden { display:none !important; }
-    .screen { min-height:100vh; }
-    #login-screen { display:flex; align-items:center; justify-content:center; background:#111; }
-    .card { background:rgba(0,0,0,0.4); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.1); border-radius:1.5rem; padding:2rem; max-width:420px; width:100%; }
-    #animal-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; }
-    #animal-grid button { font-size:2rem; padding:1rem; background:rgba(255,255,255,0.05); border-radius:0.75rem; }
-    #animal-grid button.selected { background:#d946ef; }
-    #chat-screen { display:grid; grid-template-columns:260px 1fr; height:100vh; }
-    @media (max-width:768px) { #chat-screen { grid-template-columns:1fr; } }
-    #sidebar { background:rgba(0,0,0,0.6); border-right:1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; }
-    #messages { overflow-y:auto; padding:1rem; }
-    #input-area { padding:1rem; background:rgba(0,0,0,0.4); border-top:1px solid rgba(255,255,255,0.1); }
-    input, button { background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); color:white; border-radius:0.75rem; }
-    button:hover { background:rgba(255,255,255,0.1); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上聊天室</title>
 </head>
 <body>
-  <!-- 登入畫面 -->
-  <div id="login-screen" class="screen">
-    <div class="card">
-      <h1 class="text-3xl font-bold text-center mb-6 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">線上聊天室</h1>
-      <form id="login-form">
-        <div class="mb-6">
-          <p class="text-center mb-4">請選擇 3 隻動物作為登入 ID</p>
-          <div id="animal-selection" class="flex justify-center gap-4 text-5xl min-h-[80px] items-center"></div>
-          <div id="animal-grid" class="mt-4"></div>
-        </div>
-        <div class="space-y-4">
-          <input type="text" id="pin-input" placeholder="PIN 碼（4-8位數字）" maxlength="8" pattern="\d{4,8}" required class="w-full px-4 py-3 text-center text-xl">
-          <input type="text" id="name-input" placeholder="暱稱（首次登入必填）" class="w-full px-4 py-3 text-center">
-          <button type="submit" class="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-3 rounded-xl font-bold">進入聊天室</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    <div id="root"></div>
+    <script type="module">
+        import React, { useState, useRef, useEffect, useMemo } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@10.16.16';
+        import { Send, Settings, Trash2, UserX, Shield, Plus, LogOut, Menu, X, User, Loader2, Users, MessageSquare, Clock, UserMinus, AlertTriangle, CheckCircle, AlertCircle, Edit, Unlock, Save, Type, Image as ImageIcon, Sun, Moon } from 'https://esm.sh/lucide-react@0.303.0';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, updateDoc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  <!-- 被踢畫面 -->
-  <div id="kicked-screen" class="screen hidden flex flex-col items-center justify-center">
-    <h1 class="text-3xl font-bold text-red-500">您已被暫時踢出</h1>
-    <p class="mt-4">解鎖時間：<span id="kicked-until"></span></p>
-    <button onclick="localStorage.clear();location.reload()" class="mt-6 px-6 py-3 bg-gray-800 rounded-xl">返回</button>
-  </div>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
+            authDomain: "chatroom-89cc9.firebaseapp.com",
+            projectId: "chatroom-89cc9",
+            storageBucket: "chatroom-89cc9.firebasestorage.app",
+            messagingSenderId: "631226685830",
+            appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407",
+            measurementId: "G-BEMTWM3XD5"
+        };
 
-  <!-- 聊天室主畫面 -->
-  <div id="chat-screen" class="screen hidden">
-    <div id="sidebar">
-      <div class="p-4 border-b border-white/10 flex justify-between items-center">
-        <h2 class="font-bold text-fuchsia-500">線上聊天室</h2>
-        <button id="logout-btn" class="text-red-500"><i data-lucide="log-out"></i></button>
-      </div>
-      <div id="channel-list" class="flex-1 overflow-y-auto p-4"></div>
-      <div id="member-list" class="p-4 border-t border-white/10"></div>
-    </div>
-    <div class="flex flex-col">
-      <div id="messages" class="flex-1"></div>
-      <div id="input-area" class="flex gap-2">
-        <input id="message-input" type="text" placeholder="輸入訊息..." class="flex-1 px-4 py-3">
-        <button id="send-btn" class="bg-fuchsia-600 hover:bg-fuchsia-500 px-6 rounded-xl"><i data-lucide="send"></i></button>
-      </div>
-    </div>
-  </div>
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = firebaseConfig.projectId;
 
-  <script>
-    // 動態產生動物按鈕
-    const grid = document.getElementById('animal-grid');
-    const animals = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦄","🐙"];
-    animals.forEach(a => {
-      const btn = document.createElement('button');
-      btn.textContent = a;
-      grid.appendChild(btn);
-    });
-    lucide.createIcons();
-  </script>
+        // --- 動物列表 ---
+        const ALL_ANIMALS = [
+            "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", 
+            "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦄", "🐙"
+        ];
+
+        // --- Helper Functions ---
+        const getAnimalId = (animals) => animals.join('');
+
+        // --- 共用 UI 元件 ---
+        const Avatar = ({ url, fallbackAnimal, size = "md", className = "" }) => {
+            const sizeClasses = {
+                sm: "w-8 h-8 text-sm",
+                md: "w-10 h-10 text-lg",
+                lg: "w-16 h-16 text-3xl",
+                xl: "w-24 h-24 text-5xl"
+            };
+            const [imgError, setImgError] = useState(false);
+            useEffect(() => {
+                setImgError(false);
+            }, [url]);
+            if (url && !imgError) {
+                return (
+                    <img 
+                        src={url} 
+                        alt="Avatar" 
+                        className={`${sizeClasses[size]} rounded-full object-cover border border-white/10 shadow-sm ${className}`}
+                        onError={() => setImgError(true)}
+                    />
+                );
+            }
+            return (
+                <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center border border-white/10 shadow-sm ${className}`}>
+                    {fallbackAnimal || <User className="opacity-50" />}
+                </div>
+            );
+        };
+        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, isDangerous }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-gray-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-xl font-bold mb-2 text-white flex items-center gap-2">
+                            {isDangerous && <AlertTriangle className="text-red-500" />}
+                            {title}
+                        </h3>
+                        <p className="text-gray-300 mb-6 whitespace-pre-wrap leading-relaxed">{message}</p>
+                        <div className="flex gap-3">
+                            <button onClick={onCancel} className="flex-1 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition-colors">取消</button>
+                            <button onClick={onConfirm} className={`flex-1 px-4 py-3 rounded-xl text-white font-bold transition-colors ${isDangerous ? 'bg-red-600 hover:bg-red-500' : 'bg-fuchsia-600 hover:bg-fuchsia-500'}`}>確定</button>
+                        </div>
+                    </motion.div>
+                </div>
+            );
+        };
+        const AlertModal = ({ isOpen, message, type = 'error', onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-gray-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+                        <div className="mb-4 flex justify-center">
+                            {type === 'success' ? <CheckCircle size={48} className="text-green-500"/> : <AlertCircle size={48} className="text-red-500"/>}
+                        </div>
+                        <p className="text-white text-lg mb-6">{message}</p>
+                        <button onClick={onClose} className="w-full px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white transition-colors">知道了</button>
+                    </motion.div>
+                </div>
+            );
+        };
+        // --- 主題樣式 Hook ---
+        const useThemeStyles = (theme) => {
+            return useMemo(() => {
+                const isDark = theme === 'dark';
+                return {
+                    bg: isDark ? 'bg-gray-900' : 'bg-gray-50',
+                    text: isDark ? 'text-gray-100' : 'text-gray-900',
+                    textMuted: isDark ? 'text-gray-400' : 'text-gray-500',
+                    border: isDark ? 'border-white/10' : 'border-black/10',
+                    panel: isDark ? 'bg-black/40' : 'bg-white/80',
+                    sidebar: isDark ? 'bg-black/80' : 'bg-white/90',
+                    input: isDark ? 'bg-black/50' : 'bg-white',
+                    hover: isDark ? 'hover:bg-white/5' : 'hover:bg-black/5',
+                    active: isDark ? 'bg-white/10' : 'bg-black/10',
+                    card: isDark ? 'bg-white/5' : 'bg-white shadow-sm border border-gray-100',
+                    bubbleMe: 'bg-fuchsia-600 text-white',
+                    bubbleOther: isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
+                };
+            }, [theme]);
+        };
+        // --- 主應用程式 ---
+        const App = () => {
+            const [user, setUser] = useState(null); 
+            const [animalId, setAnimalId] = useState(null); 
+            const [userProfile, setUserProfile] = useState(null);
+            const [authStep, setAuthStep] = useState('loading'); 
+            const [error, setError] = useState('');
+            const [kickInfo, setKickInfo] = useState(null);
+            const [appName, setAppName] = useState("線上聊天室");
+            // 1. 初始化
+            useEffect(() => {
+                if (!auth) {
+                    setError("Firebase 未設定。");
+                    setAuthStep('error');
+                    return;
+                }
+                const unsubSys = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'), (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().appName) {
+                        setAppName(docSnap.data().appName);
+                    }
+                });
+                const initAuth = async () => {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (e) { console.error("Auth Init Error:", e); }
+                };
+                initAuth();
+                const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
+                    if (fbUser) {
+                        setUser(fbUser);
+                        const cachedId = localStorage.getItem(`chat_app_animal_id_${appId}`);
+                        if (cachedId) {
+                            setAnimalId(cachedId);
+                        } else {
+                            setAuthStep('login');
+                        }
+                    } else {
+                        setUser(null);
+                        setAuthStep('login');
+                    }
+                });
+                return () => {
+                    unsubAuth();
+                    unsubSys();
+                };
+            }, []);
+            // 2. 監聽 Profile
+            useEffect(() => {
+                if (!user || !animalId) return;
+                setAuthStep('loading');
+                
+                const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', animalId);
+                
+                const unsubProfile = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.uid === user.uid) {
+                            const now = Date.now();
+                            if (data.kickedUntil && data.kickedUntil > now) {
+                                setKickInfo(data.kickedUntil);
+                                setAuthStep('kicked');
+                            } else {
+                                const profile = { theme: 'dark', avatarUrl: '', ...data, id: docSnap.id };
+                                setUserProfile(profile);
+                                setAuthStep('chat');
+                            }
+                        } else {
+                            handleLogout();
+                        }
+                    } else {
+                        handleLogout(); 
+                    }
+                }, (err) => {
+                    console.error(err);
+                    handleLogout();
+                });
+                return () => unsubProfile();
+            }, [user, animalId]);
+            // 3. Heartbeat
+            useEffect(() => {
+                if (authStep !== 'chat' || !userProfile?.id) return;
+                const sendHeartbeat = async () => {
+                    try {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userProfile.id), {
+                            lastSeenAt: serverTimestamp()
+                        });
+                    } catch (e) { }
+                };
+                sendHeartbeat();
+                const interval = setInterval(sendHeartbeat, 60 * 1000);
+                return () => clearInterval(interval);
+            }, [authStep, userProfile?.id]);
+            const handleLogin = async (animals, pin, name = '') => {
+                setError('');
+                if (animals.length !== 3) {
+                    setError("請選擇 3 個動物圖示！");
+                    return;
+                }
+                const targetAnimalId = getAnimalId(animals);
+                try {
+                    let currentUser = auth.currentUser;
+                    if (!currentUser) {
+                        const cred = await signInAnonymously(auth);
+                        currentUser = cred.user;
+                    }
+                    const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', targetAnimalId);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        const data = userDocSnap.data();
+                        if (data.pin !== pin) throw new Error("PIN 碼錯誤！這組動物代碼已被使用。");
+                        if (data.kickedUntil && data.kickedUntil > Date.now()) {
+                            const until = new Date(data.kickedUntil);
+                            throw new Error(`您已被暫時踢出，請於 ${until.toLocaleString()} 後再試。`);
+                        }
+                        await updateDoc(userDocRef, {
+                            uid: currentUser.uid,
+                            lastLoginAt: serverTimestamp(),
+                            lastSeenAt: serverTimestamp()
+                        });
+                    } else {
+                        if (!name.trim()) throw new Error("初次使用此組合，請輸入您的暱稱！");
+                        
+                        const sysRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config');
+                        const sysSnap = await getDoc(sysRef);
+                        const isFirstUser = !sysSnap.exists();
+                        const newProfile = {
+                            animalId: targetAnimalId,
+                            animals: animals,
+                            pin: pin,
+                            name: name.trim(),
+                            avatarUrl: "", 
+                            theme: 'dark', 
+                            role: isFirstUser ? 'admin' : 'user',
+                            uid: currentUser.uid,
+                            createdAt: serverTimestamp(),
+                            lastSeenAt: serverTimestamp(),
+                            isBanned: false 
+                        };
+                        await setDoc(userDocRef, newProfile);
+                        
+                        if (isFirstUser) {
+                            await setDoc(sysRef, { initialized: true, adminId: targetAnimalId, appName: "線上聊天室" });
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', 'general'), {
+                                name: "💬 一般閒聊",
+                                emoji: "💬",
+                                createdAt: serverTimestamp(),
+                                createdBy: targetAnimalId
+                            });
+                        }
+                    }
+                    localStorage.setItem(`chat_app_animal_id_${appId}`, targetAnimalId);
+                    setAnimalId(targetAnimalId); 
+                } catch (e) {
+                    setError(e.message);
+                    throw e;
+                }
+            };
+            const handleLogout = () => {
+                localStorage.removeItem(`chat_app_animal_id_${appId}`);
+                setAnimalId(null);
+                setUserProfile(null);
+                setAuthStep('login');
+            };
+            if (authStep === 'loading') return <Loading />;
+            if (authStep === 'error') return <div className="text-red-500 text-center p-10">{error}</div>;
+            if (authStep === 'kicked') return <KickedScreen until={kickInfo} onLogout={handleLogout} />;
+            return (
+                <div className={`min-h-screen font-sans transition-colors duration-300 ${userProfile?.theme === 'light' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-gray-100'}`}>
+                    {authStep === 'login' && <LoginScreen onLogin={handleLogin} error={error} appName={appName} />}
+                    {authStep === 'chat' && userProfile && (
+                        <ChatRoom 
+                            user={user} 
+                            userProfile={userProfile} 
+                            onLogout={handleLogout} 
+                            appName={appName}
+                        />
+                    )}
+                </div>
+            );
+        };
+        const LoginScreen = ({ onLogin, error, appName }) => {
+            const [selectedAnimals, setSelectedAnimals] = useState([]);
+            const [pin, setPin] = useState('');
+            const [name, setName] = useState('');
+            const [step, setStep] = useState(1); 
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [localError, setLocalError] = useState('');
+            useEffect(() => setLocalError(error), [error]);
+            const toggleAnimal = (animal) => {
+                if (selectedAnimals.length < 3) setSelectedAnimals([...selectedAnimals, animal]);
+            };
+            const removeAnimal = (index) => {
+                const newAnimals = [...selectedAnimals];
+                newAnimals.splice(index, 1);
+                setSelectedAnimals(newAnimals);
+            };
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!pin || pin.length < 4) {
+                    setLocalError("PIN 碼至少 4 位數");
+                    return;
+                }
+                setIsSubmitting(true);
+                try {
+                    await onLogin(selectedAnimals, pin, name);
+                } catch (e) {
+                    setIsSubmitting(false);
+                }
+            };
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4 bg-gray-900 text-gray-100">
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl">
+                        <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">{appName}</h1>
+                        <p className="text-gray-400 text-center text-sm mb-6">
+                            {step === 1 ? "請選擇 3 個動物作為您的「登入 ID」" : "輸入 PIN 碼與暱稱"}
+                        </p>
+                        {step === 1 ? (
+                            <>
+                                <div className="flex justify-center gap-4 mb-6 min-h-[80px] items-center bg-black/30 rounded-xl p-4 border border-white/5">
+                                    {[0, 1, 2].map(index => (
+                                        <div 
+                                            key={index}
+                                            onClick={() => index < selectedAnimals.length && removeAnimal(index)}
+                                            className={`w-16 h-16 rounded-xl flex items-center justify-center text-4xl border-2 transition-all cursor-pointer relative ${
+                                                index < selectedAnimals.length 
+                                                    ? 'bg-fuchsia-600 border-fuchsia-400 shadow-lg shadow-fuchsia-500/30' 
+                                                    : 'bg-white/5 border-dashed border-white/20 text-gray-600'
+                                            }`}
+                                        >
+                                            {selectedAnimals[index]}
+                                            {index < selectedAnimals.length && (
+                                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-white text-fuchsia-600 rounded-full text-xs font-bold flex items-center justify-center border border-fuchsia-200">
+                                                    {index + 1}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 max-h-[40vh] overflow-y-auto p-2 custom-scrollbar">
+                                    {ALL_ANIMALS.map(animal => {
+                                        const count = selectedAnimals.filter(a => a === animal).length;
+                                        return (
+                                            <button
+                                                key={animal}
+                                                onClick={() => toggleAnimal(animal)}
+                                                disabled={selectedAnimals.length >= 3}
+                                                className="text-2xl p-2 rounded-xl transition-all relative bg-white/5 hover:bg-white/10 hover:scale-110 active:scale-95"
+                                            >
+                                                {animal}
+                                                {count > 0 && (
+                                                    <span className="absolute top-0 right-0 w-4 h-4 bg-fuchsia-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                                                        {count}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="mt-6 flex justify-center">
+                                    <button 
+                                        onClick={() => selectedAnimals.length === 3 && setStep(2)}
+                                        disabled={selectedAnimals.length !== 3}
+                                        className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold py-3 px-12 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        下一步
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="max-w-xs mx-auto space-y-4">
+                                <div className="flex justify-center gap-2 mb-4 text-4xl">
+                                    {selectedAnimals.map((a, index) => <span key={index}>{a}</span>)}
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 ml-1">PIN 碼</label>
+                                    <input 
+                                        type="text" 
+                                        value={pin}
+                                        onChange={(e) => setPin(e.target.value.replace(/\D/g,'').slice(0,8))}
+                                        placeholder="4-8 位數字"
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] focus:outline-none focus:border-fuchsia-500 transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 ml-1">暱稱 (顯示名稱)</label>
+                                    <input 
+                                        type="text" 
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="怎麼稱呼您？"
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center focus:outline-none focus:border-fuchsia-500 transition-colors"
+                                    />
+                                </div>
+                                {localError && <div className="text-red-400 text-xs text-center p-2 bg-red-900/20 rounded-lg">{localError}</div>}
+                                <div className="flex gap-2 pt-2">
+                                    <button type="button" onClick={() => setStep(1)} className="flex-1 bg-gray-700 text-white py-3 rounded-xl hover:bg-gray-600 transition-colors">重選</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmitting}
+                                        className="flex-[2] bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-fuchsia-800 disabled:cursor-wait text-white font-bold py-3 rounded-xl shadow-lg shadow-fuchsia-900/20 flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="animate-spin" size={20} />
+                                                處理中...
+                                            </>
+                                        ) : "進入"}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </motion.div>
+                </div>
+            );
+        };
+        const ChatRoom = ({ user, userProfile, onLogout, appName }) => {
+            const styles = useThemeStyles(userProfile.theme || 'dark');
+            
+            const [channels, setChannels] = useState([]);
+            const [currentChannelId, setCurrentChannelId] = useState('general');
+            const [messages, setMessages] = useState([]);
+            const [text, setText] = useState('');
+            const [showAdmin, setShowAdmin] = useState(false);
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+            const [sidebarView, setSidebarView] = useState('channels');
+            const [memberList, setMemberList] = useState([]);
+            const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+            
+            // 🔥 New: All Users Map for live avatar updates (Keyed by ANIMAL ID)
+            const [allUsers, setAllUsers] = useState({});
+            const isAdmin = userProfile.role === 'admin';
+            // 1. Data Fetching - Channels
+            useEffect(() => {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'channels'));
+                return onSnapshot(q, (snapshot) => {
+                    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    list.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                    setChannels(list);
+                    if (list.length > 0 && !list.find(c => c.id === currentChannelId)) setCurrentChannelId(list[0].id);
+                });
+            }, [currentChannelId]);
+            // 2. Data Fetching - Members (Sidebar)
+            useEffect(() => {
+                if (sidebarView === 'members') {
+                    return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snapshot) => {
+                        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        list.sort((a, b) => (b.lastSeenAt?.seconds || 0) - (a.lastSeenAt?.seconds || 0));
+                        setMemberList(list);
+                    });
+                }
+            }, [sidebarView]);
+            // 3. Data Fetching - All Users (Map by ID for robust lookup)
+            useEffect(() => {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+                return onSnapshot(q, (snapshot) => {
+                    const map = {};
+                    snapshot.forEach(doc => {
+                        // Key by Animal ID (Document ID) which is the stable "Character ID"
+                        map[doc.id] = { ...doc.data(), id: doc.id };
+                    });
+                    setAllUsers(map);
+                });
+            }, []);
+            // 4. Data Fetching - Messages
+            useEffect(() => {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'messages')); 
+                return onSnapshot(q, (snapshot) => {
+                    let msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    msgs = msgs.filter(m => m.channelId === currentChannelId);
+                    msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                    setMessages(msgs);
+                });
+            }, [currentChannelId]);
+            const handleSend = async () => {
+                if (!text.trim()) return;
+                try {
+                    // Note: senderId is the Animal ID (Document ID)
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                        text: text.trim(),
+                        channelId: currentChannelId,
+                        senderId: userProfile.id, 
+                        senderName: userProfile.name,
+                        senderAvatarUrl: userProfile.avatarUrl || "", 
+                        senderAnimal: userProfile.animals[0],
+                        senderUid: user.uid,
+                        timestamp: Date.now(),
+                        type: 'text'
+                    });
+                    setText('');
+                    try {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userProfile.id), { lastSeenAt: serverTimestamp() });
+                    } catch(e) {}
+                } catch (e) { console.error(e); }
+            };
+            const confirmDeleteMessage = (msgId) => {
+                setConfirmModal({
+                    isOpen: true,
+                    title: "刪除訊息",
+                    message: "確定要刪除這則訊息嗎？",
+                    isDangerous: true,
+                    action: async () => {
+                        try {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', msgId));
+                        } catch(e) { console.error(e); }
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    }
+                });
+            };
+            const currentChannel = channels.find(c => c.id === currentChannelId) || { name: 'Loading...', emoji: '⏳' };
+            return (
+                <div className={`flex h-screen overflow-hidden relative ${styles.bg} ${styles.text}`}>
+                    <ConfirmModal 
+                        isOpen={confirmModal.isOpen}
+                        title={confirmModal.title}
+                        message={confirmModal.message}
+                        isDangerous={confirmModal.isDangerous}
+                        onConfirm={confirmModal.action}
+                        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    />
+                    {/* Sidebar */}
+                    <aside className={`fixed inset-y-0 left-0 z-20 w-64 ${styles.sidebar} backdrop-blur border-r ${styles.border} transform transition-transform duration-200 md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className={`p-4 border-b ${styles.border} flex justify-between items-center`}>
+                            <h2 className="font-bold text-lg text-fuchsia-500 truncate">{appName}</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => setSidebarView(prev => prev === 'channels' ? 'members' : 'channels')} className={`p-2 rounded-lg transition-colors ${styles.hover}`}>
+                                    {sidebarView === 'channels' ? <Users size={18} /> : <MessageSquare size={18} />}
+                                </button>
+                                <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden"><X size={20} /></button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                            {sidebarView === 'channels' ? (
+                                channels.map(ch => (
+                                    <button 
+                                        key={ch.id} 
+                                        onClick={() => { setCurrentChannelId(ch.id); setIsMobileMenuOpen(false); }}
+                                        className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center ${currentChannelId === ch.id ? 'bg-fuchsia-600 text-white' : `${styles.textMuted} ${styles.hover}`}`}
+                                    >
+                                        <span className="mr-3 text-lg">{ch.emoji}</span>
+                                        <span className="truncate">{ch.name}</span>
+                                    </button>
+                                ))
+                            ) : (
+                                memberList.map(m => {
+                                    // Check Is Me by Animal ID (Character ID)
+                                    const isMe = m.id === userProfile.id;
+                                    const isOnline = Date.now() - (m.lastSeenAt?.seconds * 1000 || 0) < 3 * 60 * 1000;
+                                    return (
+                                        <div key={m.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${styles.hover} group`}>
+                                            <Avatar url={m.avatarUrl} fallbackAnimal={m.animals?.[0]} size="sm" />
+                                            <div className="truncate flex-1">
+                                                <div className="text-sm font-medium flex items-center gap-1">
+                                                    {m.name}
+                                                    {m.role === 'admin' && <span className="text-[10px] bg-red-600 text-white px-1 rounded">ADM</span>}
+                                                </div>
+                                                <div className={`text-[10px] ${styles.textMuted}`}>
+                                                    {isMe ? <span className="text-fuchsia-500 font-bold">● 您自己</span> : isOnline ? <span className="text-green-500 font-bold">● 線上</span> : '離線'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        
+                        <div className={`p-4 border-t ${styles.border} bg-black/5`}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <Avatar url={userProfile.avatarUrl} fallbackAnimal={userProfile.animals[0]} />
+                                <div className="overflow-hidden">
+                                    <div className="font-bold text-sm truncate">{userProfile.name}</div>
+                                    <div className={`text-[10px] ${styles.textMuted}`}>ID: {userProfile.animals.join('')}</div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button onClick={() => setShowAdmin(true)} className={`py-2 rounded-lg text-xs flex items-center justify-center gap-1 ${styles.card} ${styles.hover}`}>
+                                    <Settings size={12} /> 設定
+                                </button>
+                                <button onClick={onLogout} className="bg-red-900/10 text-red-500 py-2 rounded-lg text-xs flex items-center justify-center gap-1 hover:bg-red-900/20">
+                                    <LogOut size={12} /> 登出
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+                    
+                    {/* Main Chat */}
+                    <main className="flex-1 flex flex-col w-full relative">
+                        <header className={`h-16 border-b ${styles.border} ${styles.panel} backdrop-blur flex items-center px-4 justify-between z-10`}>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden"><Menu size={20} /></button>
+                                <span className="text-2xl">{currentChannel.emoji}</span>
+                                <h1 className="font-bold truncate">{currentChannel.name}</h1>
+                            </div>
+                        </header>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                            {messages.map((msg) => {
+                                // 🔥 CRITICAL FIX: Identity Check by ANIMAL ID (Character) not UID
+                                const isMe = msg.senderId === userProfile.id;
+                                const canDelete = isMe || isAdmin;
+                                
+                                // 🔥 Look up sender in allUsers map by ANIMAL ID
+                                const senderUser = allUsers[msg.senderId];
+                                
+                                let liveName = msg.senderName;
+                                let liveAvatarUrl = msg.senderAvatarUrl;
+                                // Use live data if available to fix "Zombie" issue
+                                if (isMe) {
+                                    liveName = userProfile.name;
+                                    liveAvatarUrl = userProfile.avatarUrl;
+                                } else if (senderUser) {
+                                    liveName = senderUser.name;
+                                    liveAvatarUrl = senderUser.avatarUrl;
+                                }
+                                return (
+                                    <div key={msg.id} className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : ''}`}>
+                                        {/* Avatar Display */}
+                                        <Avatar url={liveAvatarUrl} fallbackAnimal={msg.senderAnimal} size="sm" className="mt-1" />
+                                        
+                                        <div className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`text-xs font-bold ${styles.textMuted}`}>{liveName}</span>
+                                                <span className={`text-[10px] ${styles.textMuted}`}>{new Date(msg.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+                                            </div>
+                                            <div className={`relative p-3 rounded-2xl text-sm leading-relaxed ${isMe ? styles.bubbleMe + ' rounded-tr-none' : styles.bubbleOther + ' rounded-tl-none'}`}>
+                                                {msg.text}
+                                                {canDelete && (
+                                                    <button onClick={() => confirmDeleteMessage(msg.id)} className="absolute -top-2 -right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                                                        <X size={10} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className={`p-4 ${styles.panel} border-t ${styles.border} backdrop-blur`}>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2 max-w-4xl mx-auto">
+                                <input 
+                                    value={text} 
+                                    onChange={e => setText(e.target.value)} 
+                                    placeholder={`在 #${currentChannel.name} 發言...`}
+                                    className={`flex-1 ${styles.input} border ${styles.border} rounded-xl px-4 py-3 focus:outline-none focus:border-fuchsia-500 transition-colors ${styles.text}`}
+                                />
+                                <button type="submit" disabled={!text.trim()} className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white p-3 rounded-xl transition-colors">
+                                    <Send size={20} />
+                                </button>
+                            </form>
+                        </div>
+                    </main>
+                    <AnimatePresence>
+                        {showAdmin && (
+                            <AdminPanel 
+                                userProfile={userProfile} 
+                                isAdmin={isAdmin} 
+                                onClose={() => setShowAdmin(false)} 
+                                currentAppName={appName}
+                                styles={styles}
+                            />
+                        )}
+                    </AnimatePresence>
+                </div>
+            );
+        };
+        const AdminPanel = ({ userProfile, isAdmin, onClose, currentAppName, styles }) => {
+            const [tab, setTab] = useState('settings'); 
+            
+            // User Self Settings
+            const [newPin, setNewPin] = useState('');
+            const [newAnimals, setNewAnimals] = useState(userProfile.animals || []);
+            const [newAvatarUrl, setNewAvatarUrl] = useState(userProfile.avatarUrl || '');
+            const [theme, setTheme] = useState(userProfile.theme || 'dark');
+            // System
+            const [editingAppName, setEditingAppName] = useState(currentAppName);
+            // Channels
+            const [newChannelName, setNewChannelName] = useState('');
+            const [newChannelEmoji, setNewChannelEmoji] = useState('💬');
+            const [editingChannel, setEditingChannel] = useState(null);
+            // Lists
+            const [userList, setUserList] = useState([]);
+            const [channelList, setChannelList] = useState([]);
+            // Modals
+            const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+            const [alertModal, setAlertModal] = useState({ isOpen: false });
+            const [editingUser, setEditingUser] = useState(null);
+            const [kickingUser, setKickingUser] = useState(null);
+            const [kickHours, setKickHours] = useState(24);
+            useEffect(() => {
+                if (isAdmin) {
+                    if (tab === 'users') {
+                        return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), snap => setUserList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                    }
+                    if (tab === 'channels') {
+                        return onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'channels'), snap => {
+                            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            list.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                            setChannelList(list);
+                        });
+                    }
+                }
+            }, [tab, isAdmin]);
+            const showAlert = (message, type = 'error') => setAlertModal({ isOpen: true, message, type });
+            // Modified to allow duplicates up to 3
+            const toggleNewAnimal = (a, currentList, setter) => {
+                if (currentList.length < 3) {
+                    setter([...currentList, a]);
+                }
+            };
+            // New helper to remove by index
+            const removeNewAnimal = (index, currentList, setter) => {
+                const newList = [...currentList];
+                newList.splice(index, 1);
+                setter(newList);
+            };
+            const handleUpdateAppName = async () => {
+                if (!editingAppName.trim()) return showAlert("名稱不能為空");
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system', 'config'), { appName: editingAppName.trim() }, { merge: true });
+                showAlert("系統名稱已更新", "success");
+            };
+            const handleUpdateSelf = async () => {
+                if (newPin && newPin.length < 4) return showAlert("PIN 需大於 4 碼");
+                try {
+                    const updates = { avatarUrl: newAvatarUrl, theme: theme };
+                    if (newPin) updates.pin = newPin;
+                    
+                    const currentId = userProfile.id;
+                    const newId = getAnimalId(newAnimals);
+                    if (isAdmin && newId !== currentId) {
+                        if (newAnimals.length !== 3) return showAlert("請選擇 3 個動物！");
+                        const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', newId);
+                        if ((await getDoc(targetRef)).exists()) return showAlert(`身分組合 ${newId} 已經有人使用了！`);
+                        
+                        setConfirmModal({
+                            isOpen: true,
+                            title: "確認身分變更",
+                            message: "更換動物身分將會登出並重新載入頁面。\n確定要執行嗎？",
+                            action: async () => {
+                                const batch = writeBatch(db);
+                                batch.set(targetRef, { ...userProfile, ...updates, animalId: newId, animals: newAnimals });
+                                batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentId));
+                                await batch.commit();
+                                localStorage.setItem(`chat_app_animal_id_${appId}`, newId);
+                                window.location.reload();
+                            }
+                        });
+                        return;
+                    }
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentId), updates);
+                    showAlert("更新成功", "success");
+                    setNewPin('');
+                } catch (e) { showAlert("更新失敗: " + e.message); }
+            };
+            const handleSaveOtherUser = async () => {
+                if (!editingUser || editingUser.animals.length !== 3 || editingUser.pin.length < 4 || !editingUser.name.trim()) return showAlert("資料不完整");
+                try {
+                    const oldId = editingUser.id;
+                    const newId = getAnimalId(editingUser.animals);
+                    
+                    if (newId !== oldId) {
+                        const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', newId);
+                        const oldRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', oldId);
+                        
+                        if ((await getDoc(targetRef)).exists()) return showAlert(`ID ${newId} 已存在`);
+                        
+                        const batch = writeBatch(db);
+                        batch.set(targetRef, { ...editingUser, animalId: newId });
+                        batch.delete(oldRef);
+                        await batch.commit();
+                        
+                        showAlert("成員資料與 ID 已遷移", "success");
+                    } else {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', oldId), {
+                            name: editingUser.name,
+                            pin: editingUser.pin,
+                            animals: editingUser.animals,
+                            avatarUrl: editingUser.avatarUrl || ''
+                        });
+                        showAlert("成員已更新", "success");
+                    }
+                    setEditingUser(null);
+                } catch(e) { showAlert(e.message); }
+            };
+            const kickUser = async () => {
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', kickingUser), { kickedUntil: Date.now() + kickHours * 3600000 });
+                    setKickingUser(null);
+                    showAlert(`已封鎖 ${kickHours} 小時`, "success");
+                } catch(e) { showAlert("操作失敗: " + e.message); }
+            };
+            const unbanUser = async (id) => {
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), { kickedUntil: null });
+                    showAlert("已解封", "success");
+                } catch(e) { showAlert("操作失敗: " + e.message); }
+            };
+            const deleteUser = (id) => setConfirmModal({ 
+                isOpen: true, title: "刪除帳號", message: "此操作無法復原。", isDangerous: true, 
+                action: async () => { 
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+                    } catch(e) { console.error(e); }
+                    setConfirmModal({isOpen:false}); 
+                } 
+            });
+            
+            // --- Update Channel ---
+            const handleUpdateChannel = async () => {
+                if (!editingChannel || !editingChannel.name.trim()) return showAlert("頻道名稱不能為空");
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', editingChannel.id), {
+                        name: editingChannel.name,
+                        emoji: editingChannel.emoji
+                    });
+                    showAlert("頻道已更新", "success");
+                    setEditingChannel(null);
+                } catch (e) {
+                    showAlert("更新失敗: " + e.message);
+                }
+            };
+            const deleteChannel = (id) => setConfirmModal({ 
+                isOpen: true, title: "刪除頻道", message: "訊息將被移除。", isDangerous: true, 
+                action: async () => { 
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', id)); 
+                    setConfirmModal({isOpen:false}); 
+                } 
+            });
+            const handleAddChannel = async () => {
+                if (!newChannelName.trim()) return;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'channels', Date.now().toString()), {
+                    name: newChannelName, emoji: newChannelEmoji, createdAt: serverTimestamp(), createdBy: userProfile.id
+                });
+                setNewChannelName('');
+            };
+            return (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
+                    {/* FIXED: Passed correct props to ConfirmModal */}
+                    <ConfirmModal 
+                        isOpen={confirmModal.isOpen} 
+                        title={confirmModal.title}
+                        message={confirmModal.message}
+                        isDangerous={confirmModal.isDangerous}
+                        onConfirm={confirmModal.action}
+                        onCancel={()=>setConfirmModal({isOpen:false})} 
+                    />
+                    <AlertModal isOpen={alertModal.isOpen} {...alertModal} onClose={()=>setAlertModal({isOpen:false})} />
+                    {/* Edit Channel Modal */}
+                    {editingChannel && (
+                        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={() => setEditingChannel(null)}>
+                            <div className="bg-gray-800 border border-white/20 p-6 rounded-2xl w-full max-w-sm shadow-2xl text-gray-100" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-xl font-bold mb-4">編輯頻道</h3>
+                                <div className="space-y-4">
+                                    <div className="flex gap-2">
+                                        <input 
+                                            value={editingChannel.emoji} 
+                                            onChange={e => setEditingChannel({...editingChannel, emoji: e.target.value})} 
+                                            className="w-14 bg-black/50 border border-white/10 rounded-lg text-center text-xl p-2"
+                                        />
+                                        <input 
+                                            value={editingChannel.name} 
+                                            onChange={e => setEditingChannel({...editingChannel, name: e.target.value})} 
+                                            placeholder="頻道名稱" 
+                                            className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 p-2"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setEditingChannel(null)} className="flex-1 py-2 bg-gray-700 rounded">取消</button>
+                                        <button onClick={handleUpdateChannel} className="flex-1 py-2 bg-fuchsia-600 font-bold rounded">儲存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {/* Edit Other User Modal */}
+                    {editingUser && (
+                        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+                            <div className="bg-gray-800 border border-white/20 p-6 rounded-2xl w-full max-w-md shadow-2xl text-gray-100" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-xl font-bold mb-4">編輯成員資料</h3>
+                                <div className="space-y-4">
+                                    <div><label className="text-xs text-gray-400">暱稱</label><input value={editingUser.name} onChange={e=>setEditingUser({...editingUser,name:e.target.value})} className="w-full bg-black/50 border border-white/10 rounded p-2"/></div>
+                                    <div><label className="text-xs text-gray-400">頭像 URL</label><input value={editingUser.avatarUrl || ''} onChange={e=>setEditingUser({...editingUser,avatarUrl:e.target.value})} className="w-full bg-black/50 border border-white/10 rounded p-2" placeholder="https://..."/></div>
+                                    <div><label className="text-xs text-gray-400">PIN</label><input value={editingUser.pin} onChange={e=>setEditingUser({...editingUser,pin:e.target.value.replace(/\D/g,'').slice(0,8)})} className="w-full bg-black/50 border border-white/10 rounded p-2"/></div>
+                                    <div className="bg-black/30 p-3 rounded-lg">
+                                        <label className="text-xs text-red-300 font-bold block mb-2">⚠️ 修改登入動物 (ID) - 點擊順序即為 ID</label>
+                                        <div className="flex justify-center gap-2 mb-2 p-2 bg-black/20 rounded min-h-[50px]">
+                                            {editingUser.animals.length === 0 && <span className="text-gray-500 text-sm py-2">尚未選擇動物</span>}
+                                            {editingUser.animals.map((a, i) => (
+                                                <div 
+                                                    key={i} 
+                                                    onClick={() => removeNewAnimal(i, editingUser.animals, (n)=>setEditingUser({...editingUser, animals: n}))}
+                                                    className="text-2xl bg-gray-700 w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer hover:bg-red-500/50 relative group"
+                                                >
+                                                    {a}
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100">x</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="grid grid-cols-5 gap-1 h-32 overflow-y-auto p-2">
+                                            {ALL_ANIMALS.map(a => (
+                                                <button 
+                                                    key={a} 
+                                                    onClick={()=>toggleNewAnimal(a, editingUser.animals, n=>setEditingUser({...editingUser,animals:n}))} 
+                                                    disabled={editingUser.animals.length >= 3}
+                                                    className={`text-xl p-1 rounded hover:bg-white/10 ${editingUser.animals.length >= 3 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                >
+                                                    {a}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2"><button onClick={()=>setEditingUser(null)} className="flex-1 py-2 bg-gray-700 rounded">取消</button><button onClick={handleSaveOtherUser} className="flex-1 py-2 bg-fuchsia-600 font-bold rounded">儲存</button></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Kick User Modal */}
+                    {kickingUser && (
+                        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={() => setKickingUser(null)}>
+                            <div className="bg-gray-800 border border-white/20 p-6 rounded-2xl w-full max-w-sm shadow-2xl text-center text-gray-100" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-xl font-bold mb-4 flex justify-center items-center gap-2"><Clock className="text-yellow-500"/> 設定封鎖時間</h3>
+                                <div className="grid grid-cols-3 gap-2 mb-6">{[1, 6, 12, 24, 72, 168].map(h => <button key={h} onClick={()=>setKickHours(h)} className={`py-2 rounded-lg border border-white/10 ${kickHours===h?'bg-yellow-600 border-yellow-500':'bg-black/30'}`}>{h}h</button>)}</div>
+                                <div className="flex gap-2"><button onClick={()=>setKickingUser(null)} className="flex-1 py-2 bg-gray-700 rounded">取消</button><button onClick={kickUser} className="flex-1 py-2 bg-yellow-600 font-bold rounded">封鎖</button></div>
+                            </div>
+                        </div>
+                    )}
+                    <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className={`${styles.bg} ${styles.text} border ${styles.border} w-full max-w-4xl h-[90vh] md:h-[80vh] rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl`} onClick={e => e.stopPropagation()}>
+                        <div className={`w-full md:w-56 ${styles.sidebar} border-b md:border-b-0 md:border-r ${styles.border} flex flex-row md:flex-col p-4 gap-2 overflow-x-auto shrink-0`}>
+                            <h2 className="font-bold text-lg px-2 hidden md:block">控制台</h2>
+                            <NavBtn active={tab==='settings'} onClick={()=>setTab('settings')} icon={<Settings size={16}/>} label="個人設定" styles={styles} />
+                            {isAdmin && <><div className={`w-px h-6 md:w-full md:h-px ${styles.border} bg-gray-500/20 mx-1 md:my-2`}/><div className="text-[10px] opacity-50 font-bold px-2 mb-1 hidden md:block">管理員專區</div>
+                            <NavBtn active={tab==='system'} onClick={()=>setTab('system')} icon={<Type size={16}/>} label="系統設定" styles={styles}/>
+                            <NavBtn active={tab==='channels'} onClick={()=>setTab('channels')} icon={<Plus size={16}/>} label="頻道管理" styles={styles}/>
+                            <NavBtn active={tab==='users'} onClick={()=>setTab('users')} icon={<UserX size={16}/>} label="成員管理" styles={styles}/></>}
+                            <button onClick={onClose} className="ml-auto md:hidden p-2 rounded-full bg-gray-500/10"><X size={16}/></button>
+                        </div>
+                        <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+                            {tab === 'settings' && (
+                                <div className="space-y-6">
+                                    <h3 className={`text-xl font-bold border-b ${styles.border} pb-2`}>個人帳戶</h3>
+                                    <div className="space-y-4">
+                                        {/* Theme Toggle */}
+                                        <div className={`p-4 rounded-xl flex items-center justify-between ${styles.card}`}>
+                                            <span className="font-bold flex items-center gap-2">{theme==='light'?<Sun size={18}/>:<Moon size={18}/>} 佈景主題</span>
+                                            <div className="flex bg-gray-500/20 p-1 rounded-lg">
+                                                <button onClick={()=>setTheme('dark')} className={`px-3 py-1 rounded-md text-sm ${theme==='dark'?'bg-gray-800 text-white shadow':'opacity-50'}`}>暗色</button>
+                                                <button onClick={()=>setTheme('light')} className={`px-3 py-1 rounded-md text-sm ${theme==='light'?'bg-white text-gray-900 shadow':'opacity-50'}`}>亮色</button>
+                                            </div>
+                                        </div>
+                                        <div className={`p-4 rounded-xl flex items-center gap-4 ${styles.card}`}>
+                                            <Avatar url={newAvatarUrl || userProfile.avatarUrl} fallbackAnimal={newAnimals[0]} size="lg" />
+                                            <div className="flex-1">
+                                                <label className="text-xs opacity-50">頭像圖片 URL</label>
+                                                <div className="flex gap-2">
+                                                    <input value={newAvatarUrl} onChange={e=>setNewAvatarUrl(e.target.value)} placeholder="https://example.com/image.png" className={`flex-1 ${styles.input} border ${styles.border} rounded p-2 text-sm`}/>
+                                                    <div className="relative group">
+                                                        <ImageIcon className="opacity-50 mt-2" size={20}/>
+                                                        <div className="absolute bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs p-2 rounded w-48 z-10">貼上圖片連結，支援 jpg, png, gif</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div><label className="text-xs opacity-50">修改 PIN</label><input type="text" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,'').slice(0,8))} placeholder="若不改請留空" className={`w-full ${styles.input} border ${styles.border} rounded-lg p-3`}/></div>
+                                        {isAdmin && <div className="bg-red-500/10 p-4 rounded-xl border border-red-500/30">
+                                            <label className="text-xs text-red-400 font-bold block mb-2">⚠️ 修改登入動物 (會登出)</label>
+                                            <div className="grid grid-cols-5 gap-1 h-32 overflow-y-auto p-2">
+                                                {ALL_ANIMALS.map(a => {
+                                                    const idx = newAnimals.indexOf(a);
+                                                    const isSel = idx !== -1;
+                                                    return (
+                                                        <button key={a} onClick={()=>toggleNewAnimal(a,newAnimals,setNewAnimals)} className={`text-xl p-1 rounded hover:bg-white/10 relative ${isSel ? 'bg-fuchsia-600 text-white' : ''}`}>
+                                                            {a}
+                                                            {isSel && <span className="absolute top-0 right-0 w-3 h-3 bg-white text-fuchsia-600 text-[8px] rounded-full flex items-center justify-center">{idx+1}</span>}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>}
+                                        <button onClick={handleUpdateSelf} className="bg-fuchsia-600 px-6 py-2 rounded-lg font-bold text-white hover:bg-fuchsia-500 w-full md:w-auto">儲存變更</button>
+                                    </div>
+                                </div>
+                            )}
+                            {tab === 'system' && isAdmin && (
+                                 <div className="space-y-6"><h3 className={`text-xl font-bold border-b ${styles.border} pb-2`}>系統設定</h3>
+                                     <div><label className="block text-sm font-bold mb-2">聊天室名稱</label><div className="flex gap-2"><input value={editingAppName} onChange={(e)=>setEditingAppName(e.target.value)} className={`flex-1 ${styles.input} border ${styles.border} rounded-lg p-3`}/><button onClick={handleUpdateAppName} className="bg-fuchsia-600 text-white px-4 rounded-lg"><Save size={18}/></button></div></div>
+                                 </div>
+                            )}
+                            {tab === 'channels' && isAdmin && (
+                                <div className="space-y-6"><h3 className={`text-xl font-bold border-b ${styles.border} pb-2`}>頻道管理</h3>
+                                    <div className="flex gap-2"><input value={newChannelEmoji} onChange={e=>setNewChannelEmoji(e.target.value)} className={`w-14 ${styles.input} border ${styles.border} rounded-lg text-center text-xl`}/><input value={newChannelName} onChange={e=>setNewChannelName(e.target.value)} placeholder="新頻道名稱" className={`flex-1 ${styles.input} border ${styles.border} rounded-lg px-3`}/><button onClick={handleAddChannel} className="bg-fuchsia-600 text-white px-4 rounded-lg"><Plus/></button></div>
+                                    <div className="space-y-2">{channelList.map(ch=><div key={ch.id} className={`flex justify-between items-center p-3 rounded-lg ${styles.card}`}>
+                                        <div className="flex items-center gap-3"><span className="text-xl">{ch.emoji}</span><span>{ch.name}</span></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={()=>setEditingChannel(ch)} className="bg-blue-500/20 text-blue-500 p-2 rounded hover:bg-blue-500 hover:text-white"><Edit size={18}/></button>
+                                            <button onClick={()=>deleteChannel(ch.id)} className="bg-red-500/20 text-red-500 p-2 rounded hover:bg-red-500 hover:text-white"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>)}</div>
+                                </div>
+                            )}
+                            {tab === 'users' && isAdmin && (
+                                <div className="space-y-6"><h3 className={`text-xl font-bold border-b ${styles.border} pb-2`}>成員列表</h3>
+                                    <div className="space-y-3">{userList.map(u=>{
+                                        const isKicked = u.kickedUntil && u.kickedUntil > Date.now();
+                                        return (<div key={u.id} className={`p-4 rounded-xl flex flex-col md:flex-row md:items-center gap-4 ${styles.card}`}>
+                                            <div className="flex items-center gap-3 flex-1"><Avatar url={u.avatarUrl} fallbackAnimal={u.animals[0]} /><div className="overflow-hidden"><div className="font-bold flex items-center gap-2 truncate">{u.name}{u.role==='admin'&&<span className="text-[10px] bg-red-600 text-white px-1 rounded">ADM</span>}{isKicked&&<span className="text-[10px] bg-yellow-600 text-white px-1 rounded flex items-center gap-1"><Clock size={10}/>封鎖中</span>}</div><div className="text-xs opacity-50 truncate">ID: {u.animals.join('')}</div></div></div>
+                                            {u.role!=='admin'&&(<div className="flex gap-2 mt-2 md:mt-0"><button onClick={()=>setEditingUser(u)} className="px-3 py-2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 flex items-center gap-1 text-xs"><Edit size={14}/>編輯</button>{isKicked?<button onClick={()=>unbanUser(u.id)} className="px-3 py-2 rounded bg-green-500/10 text-green-500 border border-green-500/20 hover:bg-green-500/20 flex items-center gap-1 text-xs"><Unlock size={14}/>解封</button>:<button onClick={()=>setKickingUser(u.id)} className="px-3 py-2 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 hover:bg-yellow-500/20 flex items-center gap-1 text-xs"><Clock size={14}/>封鎖</button>}<button onClick={()=>deleteUser(u.id)} className="px-3 py-2 rounded bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 flex items-center gap-1 text-xs"><Trash2 size={14}/>刪除</button></div>)}
+                                        </div>);
+                                    })}</div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                </div>
+            );
+        };
+        const NavBtn = ({ active, onClick, icon, label, styles }) => (
+            <button onClick={onClick} className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-3 rounded-xl transition-colors whitespace-nowrap ${active ? 'bg-fuchsia-600 text-white shadow-lg' : `${styles.textMuted} ${styles.hover}`}`}>
+                {icon}<span className="font-medium text-sm hidden md:block">{label}</span><span className="font-medium text-sm md:hidden">{label}</span>
+            </button>
+        );
+        const Loading = () => <div className="flex items-center justify-center h-screen bg-gray-900 text-fuchsia-500"><Loader2 className="animate-spin" size={48}/></div>;
+        const KickedScreen = ({ until, onLogout }) => (
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-red-500 space-y-6 p-6 text-center">
+                <div className="bg-red-900/20 p-6 rounded-full"><Clock size={64} /></div>
+                <div><h1 className="text-3xl font-bold mb-2">您已被暫時踢出</h1><p className="text-gray-400">管理員已限制您的訪問權限</p><p className="text-red-400 mt-2 font-mono bg-black/40 py-2 px-4 rounded-lg inline-block">解鎖時間：{new Date(until).toLocaleString()}</p></div>
+                <button onClick={onLogout} className="px-6 py-3 bg-gray-800 rounded-xl hover:bg-gray-700 text-white transition-colors">返回首頁</button>
+            </div>
+        );
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
