@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>線上聊天室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -12,9 +13,9 @@
         import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@10.16.16';
         import { Send, Settings, Trash2, UserX, Shield, Plus, LogOut, Menu, X, User, Loader2, Users, MessageSquare, Clock, UserMinus, AlertTriangle, CheckCircle, AlertCircle, Edit, Unlock, Save, Type, Image as ImageIcon, Sun, Moon } from 'https://esm.sh/lucide-react@0.303.0';
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, updateDoc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, updateDoc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
