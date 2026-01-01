@@ -15,8 +15,10 @@
         body, html { height: 100%; margin: 0; background: #0f172a; overscroll-behavior: none; }
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         #messages-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
-        #animal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; max-height: 40vh; overflow-y: auto; padding: 10px; }
-        .animal-btn { font-size: 2rem; aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 1rem; display: flex; align-items: center; justify-content: center; }
+        /* 優化動物網格，防止捲軸過小 */
+        #animal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 12px; max-height: 50vh; overflow-y: auto; padding: 10px; }
+        .animal-btn { font-size: 2.2rem; aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 1.25rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .animal-btn:active { background: rgba(255,255,255,0.2); }
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
     </style>
 </head>
@@ -24,23 +26,23 @@
 
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-4">
         <div class="w-full max-w-md bg-slate-900 border border-white/10 p-6 rounded-[2.5rem] shadow-2xl">
-            <h1 class="text-xl font-bold text-center mb-6 text-fuchsia-400">選擇 3 個動物身分</h1>
+            <h1 class="text-xl font-bold text-center mb-6 text-fuchsia-400 font-black tracking-widest">身分登入</h1>
             <div id="login-step-1">
                 <div class="flex justify-center gap-3 mb-6">
-                    <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl"></div>
-                    <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl"></div>
-                    <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl"></div>
+                    <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
+                    <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
+                    <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
-                <div id="animal-grid"></div>
-                <button id="btn-next" disabled class="w-full mt-6 bg-fuchsia-600 py-4 rounded-2xl font-bold disabled:opacity-20">下一步</button>
+                <div id="animal-grid" class="custom-scrollbar"></div>
+                <button id="btn-next" disabled class="w-full mt-6 bg-fuchsia-600 py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg shadow-fuchsia-900/20">下一步</button>
             </div>
             <div id="login-step-2" class="hidden space-y-4">
-                <div id="id-preview" class="text-center text-4xl mb-4 tracking-widest"></div>
-                <input type="password" id="login-pin" inputmode="numeric" placeholder="設定 4-8 位 PIN 碼" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center text-xl outline-none focus:border-fuchsia-500">
-                <input type="text" id="login-name" placeholder="您的暱稱" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center outline-none focus:border-fuchsia-500">
+                <div id="id-preview" class="text-center text-5xl mb-4 tracking-[0.2em]"></div>
+                <input type="password" id="login-pin" inputmode="numeric" placeholder="PIN 密碼 (4-8 位)" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center text-xl outline-none focus:border-fuchsia-500">
+                <input type="text" id="login-name" placeholder="顯示暱稱" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-center outline-none focus:border-fuchsia-500">
                 <div class="flex gap-2">
-                    <button id="btn-back" class="flex-1 bg-slate-800 py-4 rounded-2xl">返回</button>
-                    <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-4 rounded-2xl font-bold">進入聊天室</button>
+                    <button id="btn-back" class="flex-1 bg-slate-800 py-4 rounded-2xl font-bold">返回</button>
+                    <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-4 rounded-2xl font-black">進入系統</button>
                 </div>
             </div>
         </div>
@@ -51,35 +53,43 @@
             <div class="flex items-center gap-3 overflow-hidden">
                 <span id="header-avatar" class="text-2xl"></span>
                 <div class="truncate">
-                    <h2 id="current-ch-name" class="font-bold text-sm truncate"></h2>
-                    <p id="display-date" class="text-[10px] text-fuchsia-400 font-mono"></p>
+                    <h2 id="current-ch-name" class="font-bold text-sm truncate uppercase tracking-tighter"></h2>
+                    <p id="display-date" class="text-[10px] text-fuchsia-400 font-mono font-bold"></p>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <input type="text" id="date-picker" class="w-24 bg-slate-800 border-none rounded-lg px-2 py-1 text-[10px] text-center">
-                <button onclick="toggleSideMenu()" class="p-2 bg-slate-800 rounded-lg"><i data-lucide="settings"></i></button>
-            </div>
+            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-800 rounded-xl active:bg-slate-700 transition-colors">
+                <i data-lucide="menu" class="w-6 h-6 text-fuchsia-400"></i>
+            </button>
         </header>
         
-        <div id="messages-container" class="p-4 space-y-4"></div>
+        <div id="messages-container" class="p-4 space-y-4 custom-scrollbar"></div>
 
         <div class="p-3 border-t border-white/10 bg-slate-900 safe-bottom">
-            <form id="chat-form" class="flex gap-2 max-w-4xl mx-auto">
-                <input type="text" id="msg-input" placeholder="說點什麼..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-2.5 outline-none">
-                <button type="submit" class="bg-fuchsia-600 p-2.5 rounded-full"><i data-lucide="send"></i></button>
+            <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
+                <input type="text" id="msg-input" placeholder="傳送訊息..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-3 outline-none focus:border-fuchsia-500 text-sm">
+                <button type="submit" class="bg-fuchsia-600 p-3 rounded-full shadow-lg active:scale-90 transition-transform"><i data-lucide="send" class="w-5 h-5"></i></button>
             </form>
         </div>
 
-        <aside id="side-menu" class="fixed inset-y-0 right-0 w-64 bg-slate-900 border-l border-white/10 transform translate-x-full transition-transform z-[110] p-4">
-            <div class="flex justify-between mb-6">
-                <span class="font-bold">管理設定</span>
+        <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-slate-900 border-l border-white/10 transform translate-x-full transition-transform duration-300 z-[110] flex flex-col">
+            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
+                <span class="font-black text-fuchsia-400 tracking-widest uppercase">System Menu</span>
                 <button onclick="toggleSideMenu()"><i data-lucide="x"></i></button>
             </div>
-            <div id="admin-panel" class="hidden">
-                <p class="text-[10px] text-red-400 mb-2 uppercase">用戶清單 (Admin Only)</p>
-                <div id="user-list" class="space-y-2"></div>
+            <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
+                <div>
+                    <label class="text-[10px] text-gray-500 mb-3 block uppercase font-black tracking-widest">日期選擇</label>
+                    <input type="text" id="date-picker" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-sm text-center font-bold mb-3">
+                    <button onclick="goToday()" class="w-full py-3 bg-fuchsia-600/10 text-fuchsia-400 rounded-xl text-xs font-bold border border-fuchsia-500/20 active:bg-fuchsia-500/20">回到今日</button>
+                </div>
+                <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-white/10">
+                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest">人員管理 (Admin)</label>
+                    <div id="user-list" class="space-y-3"></div>
+                </div>
             </div>
-            <button id="btn-logout" class="absolute bottom-10 left-4 right-4 py-3 bg-red-500/10 text-red-500 rounded-xl font-bold">登出</button>
+            <div class="p-5 border-t border-white/10 bg-black/40">
+                <button id="btn-logout" class="w-full py-4 text-red-400 bg-red-400/10 rounded-2xl text-xs font-black uppercase tracking-widest active:bg-red-400/20">登出系統</button>
+            </div>
         </aside>
     </div>
 
@@ -101,13 +111,31 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐺", "🦓"];
+        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐺", "🦓", "🐘", "🦒", "🐫", "🦖"];
         let selectedAnimals = [];
         let userProfile = null;
-        let currentChatDate = new Date().toLocaleDateString('sv'); // YYYY-MM-DD
+        let currentChatDate = "";
         let msgUnsubscribe = null;
 
-        // 介面控制
+        const getTodayStr = () => new Date().toLocaleDateString('sv');
+
+        // Flatpickr
+        let fp = flatpickr("#date-picker", {
+            defaultDate: "today", maxDate: "today",
+            onChange: ([date]) => {
+                loadMessages(date.toLocaleDateString('sv'));
+                if(window.innerWidth < 768) toggleSideMenu();
+            }
+        });
+
+        window.goToday = () => {
+            const today = getTodayStr();
+            fp.setDate(today);
+            loadMessages(today);
+            toggleSideMenu();
+        };
+
+        // UI 邏輯
         const grid = document.getElementById('animal-grid');
         ANIMALS.forEach(a => {
             const b = document.createElement('button');
@@ -133,12 +161,12 @@
             document.getElementById('login-step-2').classList.add('hidden');
         };
 
-        // 登入邏輯：日期即聊天室
+        // 登入
         document.getElementById('btn-login').onclick = async () => {
             const pin = document.getElementById('login-pin').value;
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-            if(pin.length < 4) return alert("PIN 碼太短");
+            if(pin.length < 4) return alert("PIN 碼需 4~8 位數字");
 
             try {
                 await signInAnonymously(auth);
@@ -146,61 +174,59 @@
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pin) return alert("PIN 錯誤");
+                    if (userSnap.data().pin !== pin) return alert("PIN 密碼錯誤");
                     userProfile = userSnap.data();
                 } else {
-                    if (!name) return alert("請輸入暱稱");
-                    // 判定 Admin：檢查 users 集合是否為空
+                    if (!name) return alert("初次登入請輸入暱稱");
                     const allUsers = await getDocs(query(collection(db, 'users'), limit(1)));
                     const role = allUsers.empty ? 'admin' : 'user';
-                    userProfile = { name, pin, animalId, animals: selectedAnimals, role, createdAt: Date.now() };
+                    userProfile = { name, pin, animalId, animals: selectedAnimals, role, uid: auth.currentUser.uid, createdAt: Date.now() };
                     await setDoc(userRef, userProfile);
                 }
-
                 localStorage.setItem('chat_animal_id', animalId);
                 enterChat();
-            } catch (e) { alert("登入失敗: " + e.message); }
+            } catch (e) { alert("Error: " + e.message); }
         };
 
-        // 進入聊天室
+        // 進入聊天
         async function enterChat() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
             document.getElementById('header-avatar').innerText = userProfile.animals[0];
-            document.getElementById('current-ch-name').innerText = `${userProfile.name}${userProfile.role==='admin'?' (管理者)':''}`;
+            document.getElementById('current-ch-name').innerText = `${userProfile.name}${userProfile.role==='admin'?' 👑':''}`;
             
-            initDateLink();
             if(userProfile.role === 'admin') initAdmin();
-            loadMessages(currentChatDate);
+            
+            // 修正點：進入時預設進入今日日期
+            loadMessages(getTodayStr());
+            lucide.createIcons();
         }
 
-        // 日期聊天室核心：監聽特定日期
         function loadMessages(dateStr) {
             if(msgUnsubscribe) msgUnsubscribe();
             currentChatDate = dateStr;
             document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
             
-            // 結構改變：days -> {date} -> messages -> {msg_id}
-            const q = query(
-                collection(db, 'rooms', dateStr, 'messages'), 
-                orderBy('timestamp', 'asc')
-            );
+            const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
 
             msgUnsubscribe = onSnapshot(q, (snap) => {
                 const container = document.getElementById('messages-container');
-                container.innerHTML = snap.empty ? `<div class="text-center text-slate-600 py-20 text-xs">這天還沒有人說話</div>` : "";
+                container.innerHTML = snap.empty ? `<div class="text-center text-slate-600 py-20 text-xs">📅 ${dateStr} 目前尚無訊息</div>` : "";
                 snap.forEach(d => {
                     const m = d.data();
                     const isMe = m.senderId === userProfile.animalId;
+                    const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                     const msgDiv = document.createElement('div');
-                    msgDiv.className = `flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`;
+                    msgDiv.className = `flex gap-2 mb-2 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
-                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-lg shrink-0">${m.avatar}</div>
+                        <div class="w-9 h-9 rounded-2xl bg-slate-800 flex shrink-0 items-center justify-center text-xl shadow-inner border border-white/5">${m.avatar}</div>
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]">
-                            <span class="text-[9px] text-slate-500 mb-1">${m.senderName}</span>
-                            <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-fuchsia-600' : 'bg-slate-800'}">
-                                ${m.text}
-                                ${userProfile.role==='admin' ? `<button onclick="deleteMsg('${d.id}')" class="ml-2 text-[10px] text-white/30">刪除</button>` : ''}
+                            <span class="text-[9px] text-slate-500 font-bold mb-1">${m.senderName}</span>
+                            <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
+                                <div class="px-4 py-2.5 rounded-2xl text-[13px] ${isMe ? 'bg-fuchsia-600 rounded-tr-none shadow-fuchsia-900/20' : 'bg-slate-800 rounded-tl-none border border-white/5'} shadow-lg">
+                                    ${m.text}
+                                </div>
+                                <span class="text-[8px] text-slate-600 font-mono mb-1 shrink-0">${time}</span>
                             </div>
                         </div>
                     `;
@@ -210,43 +236,26 @@
             });
         }
 
-        // 發送訊息
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
             if(!text) return;
 
-            const now = new Date();
-            const today = now.toLocaleDateString('sv');
-            
-            // 永遠發送到「今天」的聊天室
+            const today = getTodayStr();
             await addDoc(collection(db, 'rooms', today, 'messages'), {
                 text, senderId: userProfile.animalId, senderName: userProfile.name,
                 avatar: userProfile.animals[0], timestamp: Date.now()
             });
 
             input.value = "";
-            // 如果當前在看舊日期，發完後自動跳回今天
             if(currentChatDate !== today) {
                 fp.setDate(today);
                 loadMessages(today);
             }
         };
 
-        window.deleteMsg = (id) => {
-            if(confirm("Admin 確定刪除此訊息？")) deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', id));
-        };
-
-        // Flatpickr 初始化
-        let fp = flatpickr("#date-picker", {
-            defaultDate: "today", maxDate: "today",
-            onChange: ([date]) => {
-                const dateStr = date.toLocaleDateString('sv');
-                loadMessages(dateStr);
-            }
-        });
-
+        // 管理員：人員管理
         async function initAdmin() {
             document.getElementById('admin-panel').classList.remove('hidden');
             onSnapshot(collection(db, 'users'), (snap) => {
@@ -254,10 +263,26 @@
                 list.innerHTML = "";
                 snap.forEach(d => {
                     const u = d.data();
-                    list.innerHTML += `<div class="p-2 bg-white/5 rounded-lg text-[10px] flex justify-between"><span>${u.animals.join('')} ${u.name}</span><span class="text-fuchsia-400">PIN: ${u.pin}</span></div>`;
+                    const item = document.createElement('div');
+                    item.className = "p-4 bg-black/40 rounded-2xl text-xs border border-white/5 flex justify-between items-center";
+                    item.innerHTML = `
+                        <div class="flex flex-col">
+                            <span class="font-black text-slate-100">${u.animals.join('')} ${u.name}</span>
+                            <span class="text-[9px] text-fuchsia-500 font-mono">PIN: ${u.pin}</span>
+                        </div>
+                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-lg hover:bg-red-500/20 transition-colors"><i data-lucide="user-minus" class="w-4 h-4"></i></button>` : '<span class="text-[8px] text-amber-500 font-black px-2 border border-amber-500/30 rounded uppercase">Master</span>'}
+                    `;
+                    list.appendChild(item);
                 });
+                lucide.createIcons();
             });
         }
+
+        window.deleteUser = async (animalId) => {
+            if(confirm(`確定刪除人員 ${animalId} 嗎？此操作無法撤回且該人員將無法再登入。`)) {
+                await deleteDoc(doc(db, 'users', animalId));
+            }
+        };
 
         window.toggleSideMenu = () => document.getElementById('side-menu').classList.toggle('translate-x-full');
         document.getElementById('btn-logout').onclick = () => { localStorage.clear(); location.reload(); };
@@ -270,6 +295,8 @@
                 if(snap.exists()) {
                     userProfile = snap.data();
                     enterChat();
+                } else {
+                    localStorage.clear();
                 }
             }
         })();
