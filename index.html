@@ -1,352 +1,267 @@
 <!DOCTYPE html>
-<html lang="zh-TW" class="dark">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>線上聊天室</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { 
-            getAuth, 
-            signInAnonymously,
-            onAuthStateChanged,
-            signOut
-        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-        import { 
-            getFirestore,
-            collection,
-            addDoc,
-            onSnapshot,
-            query,
-            orderBy,
-            serverTimestamp,
-            doc,
-            setDoc,
-            getDoc,
-            updateDoc,
-            deleteDoc,
-            writeBatch
-        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* 隱藏滾動條但保持功能 */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        
+        /* 防止手機點擊縮放 */
+        input, button { font-size: 16px !important; }
+        
+        .hidden { display: none !important; }
+        
+        /* 動畫效果 */
+        .animal-btn:active { transform: scale(0.9); }
+        .selected-slot { transition: all 0.2s ease; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
-        // 你的Firebase配置
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900">
+        <div class="w-full max-w-md bg-black/40 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl">
+            <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 bg-gradient-to-r from-fuchsia-400 to-purple-400 bg-clip-text text-transparent">線上聊天室</h1>
+            
+            <div id="login-step-1">
+                <p class="text-gray-400 text-center text-sm mb-4">請依序選擇 3 個動物 (點擊可刪除)</p>
+                <div class="flex justify-center gap-3 mb-6">
+                    <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
+                    <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
+                    <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center text-3xl cursor-pointer hover:border-red-500/50"></div>
+                </div>
+                
+                <div id="animal-grid" class="grid grid-cols-5 gap-2 max-h-56 overflow-y-auto p-2 border border-white/5 rounded-xl bg-black/20 custom-scrollbar mb-4">
+                    </div>
+
+                <div class="flex gap-2">
+                    <button onclick="clearAllAnimals()" class="flex-1 bg-gray-800 hover:bg-gray-700 py-3 rounded-xl text-sm transition-all">全部清除</button>
+                    <button id="btn-next" disabled class="flex-[2] bg-fuchsia-600 hover:bg-fuchsia-500 py-3 rounded-xl font-bold disabled:opacity-30 transition-all">下一步</button>
+                </div>
+            </div>
+
+            <div id="login-step-2" class="hidden animate-in fade-in">
+                <div class="space-y-4">
+                    <div id="id-preview" class="text-center text-4xl mb-2 tracking-widest"></div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-gray-500 ml-1">PIN 碼 (密碼)</label>
+                        <input type="password" id="login-pin" pattern="\[0-9]*" inputmode="numeric" placeholder="4-8 位數字" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center focus:border-fuchsia-500 outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-gray-500 ml-1">顯示暱稱</label>
+                        <input type="text" id="login-name" placeholder="怎麼稱呼您？" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center focus:border-fuchsia-500 outline-none">
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button id="btn-back" class="flex-1 bg-gray-700 py-3 rounded-xl">重選</button>
+                        <button id="btn-login" class="flex-[2] bg-fuchsia-600 py-3 rounded-xl font-bold">進入聊天室</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="hidden flex flex-col h-full relative">
+        <header class="h-14 md:h-16 border-b border-white/10 flex items-center px-4 bg-gray-900/80 backdrop-blur justify-between shrink-0">
+            <div class="flex items-center gap-2">
+                <span id="current-ch-emoji" class="text-xl">💬</span>
+                <h2 id="current-ch-name" class="font-bold truncate max-w-[150px]">一般閒聊</h2>
+            </div>
+            <button onclick="toggleLogoutMenu()" class="w-8 h-8 rounded-full bg-fuchsia-600 flex items-center justify-center text-sm" id="header-avatar">🐶</button>
+        </header>
+
+        <div id="logout-menu" class="hidden absolute top-16 right-4 z-40 bg-gray-800 border border-white/10 p-2 rounded-xl shadow-2xl">
+            <button id="btn-logout" class="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm w-full">
+                <i data-lucide="log-out" class="w-4 h-4"></i> 登出帳號
+            </button>
+        </div>
+        
+        <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-900">
+            </div>
+
+        <div class="p-3 md:p-4 border-t border-white/10 bg-gray-900 shrink-0">
+            <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
+                <input type="text" id="msg-input" placeholder="說點什麼..." autocomplete="off" class="flex-1 bg-black/40 border border-white/10 rounded-full px-5 py-2.5 outline-none focus:border-fuchsia-500 transition-all text-sm">
+                <button type="submit" class="bg-fuchsia-600 text-white p-2.5 rounded-full hover:bg-fuchsia-500 active:scale-90 transition-all">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
             authDomain: "chatroom-89cc9.firebaseapp.com",
             projectId: "chatroom-89cc9",
             storageBucket: "chatroom-89cc9.firebasestorage.app",
             messagingSenderId: "631226685830",
-            appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407",
-            measurementId: "G-BEMTWM3XD5"
+            appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407"
         };
 
-        // 初始化Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const ANIMALS = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐙", "🐧", "🦄", "🐼", "🐨", "🐔", "🐺", "🦓", "🐘"];
 
-        // 全域變數
-        window.firebaseApp = app;
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-        window.firebase = {
-            auth,
-            db,
-            signInAnonymously,
-            onAuthStateChanged,
-            signOut,
-            collection,
-            addDoc,
-            onSnapshot,
-            query,
-            orderBy,
-            serverTimestamp,
-            doc,
-            setDoc,
-            getDoc,
-            updateDoc,
-            deleteDoc,
-            writeBatch
+        let selectedAnimals = [];
+        let currentUserProfile = null;
+
+        // --- 介面控制 ---
+        window.removeAnimal = (index) => {
+            if (selectedAnimals[index]) {
+                selectedAnimals.splice(index, 1);
+                updateAnimalSlots();
+            }
         };
+
+        window.clearAllAnimals = () => {
+            selectedAnimals = [];
+            updateAnimalSlots();
+        };
+
+        function updateAnimalSlots() {
+            const slots = document.querySelectorAll('.selected-slot');
+            slots.forEach((slot, i) => {
+                slot.innerText = selectedAnimals[i] || "";
+                slot.classList.toggle('border-fuchsia-500', !!selectedAnimals[i]);
+                slot.classList.toggle('bg-fuchsia-600/20', !!selectedAnimals[i]);
+            });
+            document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
+        }
+
+        // 生成動物按鈕
+        const grid = document.getElementById('animal-grid');
+        ANIMALS.forEach(a => {
+            const btn = document.createElement('button');
+            btn.className = "animal-btn text-3xl p-2 rounded-xl hover:bg-white/10 transition-all";
+            btn.innerText = a;
+            btn.onclick = () => {
+                if (selectedAnimals.length < 3) {
+                    selectedAnimals.push(a);
+                    updateAnimalSlots();
+                }
+            };
+            grid.appendChild(btn);
+        });
+
+        // 登入流程
+        document.getElementById('btn-next').onclick = () => {
+            document.getElementById('login-step-1').classList.add('hidden');
+            document.getElementById('login-step-2').classList.remove('hidden');
+            document.getElementById('id-preview').innerText = selectedAnimals.join('');
+        };
+
+        document.getElementById('btn-back').onclick = () => {
+            document.getElementById('login-step-1').classList.remove('hidden');
+            document.getElementById('login-step-2').classList.add('hidden');
+        };
+
+        document.getElementById('btn-login').onclick = async () => {
+            const pin = document.getElementById('login-pin').value;
+            const name = document.getElementById('login-name').value;
+            const animalId = selectedAnimals.join('');
+
+            if(pin.length < 4) return alert("PIN 碼至少需 4 位數");
+            
+            try {
+                const userRef = doc(db, 'users', animalId);
+                const userSnap = await getDoc(userRef);
+                
+                if (!auth.currentUser) await signInAnonymously(auth);
+
+                if (userSnap.exists()) {
+                    if (userSnap.data().pin !== pin) return alert("密碼錯誤，此組合已被使用");
+                } else {
+                    if (!name) return alert("初次登入請輸入暱稱");
+                    await setDoc(userRef, { name, pin, animalId, animals: selectedAnimals, createdAt: Date.now() });
+                }
+                
+                localStorage.setItem('chat_animal_id', animalId);
+                loadChat(animalId);
+            } catch (e) { alert("登入失敗: " + e.message); }
+        };
+
+        async function loadChat(animalId) {
+            const userSnap = await getDoc(doc(db, 'users', animalId));
+            if (!userSnap.exists()) return;
+            currentUserProfile = userSnap.data();
+            
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            document.getElementById('header-avatar').innerText = currentUserProfile.animals[0];
+            document.getElementById('current-ch-name').innerText = currentUserProfile.name;
+            
+            initMessages();
+        }
+
+        function initMessages() {
+            const q = query(collection(db, 'messages'), orderBy('timestamp', 'desc'), limit(50));
+            const container = document.getElementById('messages-container');
+            
+            onSnapshot(q, (snapshot) => {
+                container.innerHTML = "";
+                // 因為是 desc 排序（為了拿最新50條），顯示時要反轉回來
+                const docs = snapshot.docs.reverse();
+                docs.forEach(d => {
+                    const msg = d.data();
+                    const isMe = msg.senderId === currentUserProfile.animalId;
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`;
+                    msgDiv.innerHTML = `
+                        <div class="w-8 h-8 rounded-full bg-gray-800 flex shrink-0 items-center justify-center text-sm border border-white/5">${msg.senderAnimal}</div>
+                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
+                            <span class="text-[10px] text-gray-500 mb-0.5 px-1">${msg.senderName}</span>
+                            <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-fuchsia-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'} shadow-sm">
+                                ${msg.text}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(msgDiv);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        document.getElementById('chat-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if(!text) return;
+            
+            input.value = "";
+            await addDoc(collection(db, 'messages'), {
+                text,
+                senderId: currentUserProfile.animalId,
+                senderName: currentUserProfile.name,
+                senderAnimal: currentUserProfile.animals[0],
+                timestamp: Date.now()
+            });
+        };
+
+        window.toggleLogoutMenu = () => {
+            document.getElementById('logout-menu').classList.toggle('hidden');
+        };
+
+        document.getElementById('btn-logout').onclick = () => {
+            localStorage.removeItem('chat_animal_id');
+            location.reload();
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            const savedId = localStorage.getItem('chat_animal_id');
+            if(savedId) loadChat(savedId);
+        });
+
+        lucide.createIcons();
     </script>
-</head>
-<body>
-    <!-- 加載畫面 -->
-    <div id="loading" class="screen">
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>載入中...</p>
-        </div>
-    </div>
-
-    <!-- 登入畫面 -->
-    <div id="login-screen" class="screen" style="display: none;">
-        <div class="login-container">
-            <h1 class="app-title"><span id="app-name">線上聊天室</span></h1>
-            <div class="login-steps">
-                <!-- 步驟1: 選擇動物 -->
-                <div id="step1" class="login-step active">
-                    <p class="step-description">請選擇 3 個動物作為您的「登入 ID」</p>
-                    
-                    <div class="animal-slots">
-                        <div class="animal-slot" data-index="0" onclick="removeAnimal(0)">
-                            <span class="placeholder">?</span>
-                            <div class="slot-number">1</div>
-                        </div>
-                        <div class="animal-slot" data-index="1" onclick="removeAnimal(1)">
-                            <span class="placeholder">?</span>
-                            <div class="slot-number">2</div>
-                        </div>
-                        <div class="animal-slot" data-index="2" onclick="removeAnimal(2)">
-                            <span class="placeholder">?</span>
-                            <div class="slot-number">3</div>
-                        </div>
-                    </div>
-
-                    <div class="animal-grid">
-                        <!-- 動物圖示會由JS動態生成 -->
-                    </div>
-
-                    <div class="step-actions">
-                        <button onclick="goToStep(2)" id="next-btn" disabled class="btn-primary">
-                            下一步
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 步驟2: 輸入PIN和名稱 -->
-                <div id="step2" class="login-step">
-                    <p class="step-description">輸入 PIN 碼與暱稱</p>
-                    
-                    <div class="selected-animals-display">
-                        <span id="selected-animals-preview"></span>
-                    </div>
-
-                    <form id="login-form" onsubmit="handleLogin(event)">
-                        <div class="form-group">
-                            <label>PIN 碼 (4-8位數字)</label>
-                            <input type="text" id="pin-input" 
-                                   placeholder="輸入 PIN 碼" 
-                                   maxlength="8"
-                                   oninput="this.value = this.value.replace(/\D/g,'').slice(0,8)">
-                        </div>
-
-                        <div class="form-group">
-                            <label>暱稱 (顯示名稱)</label>
-                            <input type="text" id="name-input" 
-                                   placeholder="怎麼稱呼您？">
-                        </div>
-
-                        <div id="login-error" class="error-message" style="display: none;"></div>
-
-                        <div class="step-actions">
-                            <button type="button" onclick="goToStep(1)" class="btn-secondary">
-                                重選
-                            </button>
-                            <button type="submit" id="login-btn" class="btn-primary">
-                                <span>進入聊天室</span>
-                                <i class="fas fa-sign-in-alt"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 聊天室畫面 -->
-    <div id="chat-screen" class="screen" style="display: none;">
-        <div class="chat-container">
-            <!-- 側邊欄 -->
-            <div id="sidebar" class="sidebar">
-                <div class="sidebar-header">
-                    <h2 id="sidebar-app-name">線上聊天室</h2>
-                    <div class="sidebar-controls">
-                        <button onclick="toggleSidebarView()" class="icon-btn" title="切換檢視">
-                            <i id="sidebar-toggle-icon" class="fas fa-users"></i>
-                        </button>
-                        <button onclick="toggleMobileMenu()" class="icon-btn mobile-only">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 頻道列表 -->
-                <div id="channels-view" class="sidebar-content">
-                    <div class="sidebar-section">
-                        <h3><i class="fas fa-hashtag"></i> 頻道</h3>
-                        <div id="channels-list" class="channel-list">
-                            <!-- 頻道列表動態生成 -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 成員列表 -->
-                <div id="members-view" class="sidebar-content" style="display: none;">
-                    <div class="sidebar-section">
-                        <h3><i class="fas fa-user-friends"></i> 線上成員</h3>
-                        <div id="members-list" class="member-list">
-                            <!-- 成員列表動態生成 -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 使用者資訊 -->
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <div id="user-avatar" class="avatar">
-                            <span id="user-avatar-emoji">🐱</span>
-                        </div>
-                        <div class="user-details">
-                            <strong id="user-name">使用者</strong>
-                            <small id="user-id">ID: ...</small>
-                        </div>
-                    </div>
-                    <div class="user-actions">
-                        <button onclick="showAdminPanel()" class="btn-small">
-                            <i class="fas fa-cog"></i> 設定
-                        </button>
-                        <button onclick="handleLogout()" class="btn-small btn-danger">
-                            <i class="fas fa-sign-out-alt"></i> 登出
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 主要聊天區域 -->
-            <div class="main-chat">
-                <!-- 聊天室標題列 -->
-                <div class="chat-header">
-                    <button onclick="toggleMobileMenu()" class="icon-btn mobile-only">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <div class="channel-info">
-                        <span id="current-channel-emoji" class="channel-emoji">💬</span>
-                        <h3 id="current-channel-name">一般閒聊</h3>
-                    </div>
-                </div>
-
-                <!-- 訊息區域 -->
-                <div id="messages-container" class="messages-container">
-                    <!-- 訊息動態生成 -->
-                </div>
-
-                <!-- 訊息輸入 -->
-                <div class="message-input-area">
-                    <form id="message-form" onsubmit="sendMessage(event)">
-                        <input type="text" 
-                               id="message-input" 
-                               placeholder="輸入訊息..."
-                               autocomplete="off">
-                        <button type="submit" id="send-btn" class="btn-primary">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 管理面板 -->
-    <div id="admin-panel" class="modal-overlay" style="display: none;">
-        <div class="admin-panel">
-            <div class="admin-header">
-                <h2><i class="fas fa-cog"></i> 控制台</h2>
-                <button onclick="hideAdminPanel()" class="icon-btn close-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="admin-tabs">
-                <button onclick="switchAdminTab('settings')" class="admin-tab active">
-                    <i class="fas fa-user"></i> 個人設定
-                </button>
-                <button onclick="switchAdminTab('system')" class="admin-tab">
-                    <i class="fas fa-cogs"></i> 系統設定
-                </button>
-                <button onclick="switchAdminTab('channels')" class="admin-tab">
-                    <i class="fas fa-hashtag"></i> 頻道管理
-                </button>
-                <button onclick="switchAdminTab('users')" class="admin-tab">
-                    <i class="fas fa-users"></i> 成員管理
-                </button>
-            </div>
-
-            <div class="admin-content">
-                <!-- 個人設定 -->
-                <div id="settings-tab" class="admin-tab-content active">
-                    <h3>個人帳戶設定</h3>
-                    <!-- 內容由JS動態生成 -->
-                </div>
-
-                <!-- 系統設定 -->
-                <div id="system-tab" class="admin-tab-content">
-                    <h3>系統設定</h3>
-                    <!-- 內容由JS動態生成 -->
-                </div>
-
-                <!-- 頻道管理 -->
-                <div id="channels-tab" class="admin-tab-content">
-                    <h3>頻道管理</h3>
-                    <!-- 內容由JS動態生成 -->
-                </div>
-
-                <!-- 成員管理 -->
-                <div id="users-tab" class="admin-tab-content">
-                    <h3>成員列表</h3>
-                    <!-- 內容由JS動態生成 -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 確認對話框 -->
-    <div id="confirm-modal" class="modal-overlay" style="display: none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 id="confirm-title">確認操作</h3>
-            </div>
-            <div class="modal-body">
-                <p id="confirm-message">確定要執行此操作嗎？</p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="confirmCancel()" class="btn-secondary">取消</button>
-                <button onclick="confirmAction()" id="confirm-action-btn" class="btn-primary">確定</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 通知對話框 -->
-    <div id="alert-modal" class="modal-overlay" style="display: none;">
-        <div class="modal">
-            <div class="modal-body text-center">
-                <i id="alert-icon" class="fas fa-exclamation-circle"></i>
-                <p id="alert-message"></p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="hideAlert()" class="btn-primary">確定</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 被踢出畫面 -->
-    <div id="kicked-screen" class="screen" style="display: none;">
-        <div class="kicked-container">
-            <div class="kicked-icon">
-                <i class="fas fa-clock"></i>
-            </div>
-            <h1>您已被暫時踢出</h1>
-            <p>管理員已限制您的訪問權限</p>
-            <div class="kick-time" id="kick-until"></div>
-            <button onclick="handleKickedLogout()" class="btn-primary">
-                返回首頁
-            </button>
-        </div>
-    </div>
-
-    <!-- 引入JavaScript -->
-    <script src="app.js"></script>
 </body>
 </html>
