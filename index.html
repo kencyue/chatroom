@@ -6,52 +6,36 @@
     <title>ChatApp - Pro Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         :root { --sat: env(safe-area-inset-bottom); }
         .hidden { display: none !important; }
         body, html { height: 100%; margin: 0; overscroll-behavior: none; }
         
-        /* 主題顏色定義 */
-        .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --login-overlay: #020617; }
-        .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --login-overlay: #020617; }
-        .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --login-overlay: #e2e8f0; }
-        /* LINE 主題 */
-        .theme-line { --main-color: #06C755; --bg-color: #8CABD9; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: #ffffff; --login-overlay: #06C755; }
+        .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --bubble-other: rgba(255,255,255,0.1); --bubble-text-other: #fff; }
+        .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --bubble-other: rgba(255,255,255,0.1); --bubble-text-other: #fff; }
+        .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --bubble-other: #e2e8f0; --bubble-text-other: #1e293b; }
+        /* LINE 主題優化：提升對方訊息泡泡對比度 */
+        .theme-line { --main-color: #06C755; --bg-color: #8CABD9; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: #ffffff; --bubble-other: #ffffff; --bubble-text-other: #000000; }
 
-        body { background: var(--bg-color); color: var(--text-color); transition: background 0.3s, color 0.3s; }
+        body { background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
         .bg-panel { background: var(--panel-color); }
-        .text-main { color: var(--main-color); }
         .btn-main { background: var(--main-color); color: white; }
+        .text-main { color: var(--main-color); }
         .border-base { border-color: var(--border-color); }
 
-        #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
-        #messages-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
-
-        .animal-btn, .keypad-btn { 
-            aspect-ratio: 1; 
-            background: var(--input-bg); 
-            border-radius: 1rem; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            border: 1px solid var(--border-color);
-            transition: all 0.1s;
-        }
-        .keypad-btn:active { transform: scale(0.9); background: var(--main-color); color: white; }
+        .keypad-btn { aspect-ratio: 1; background: var(--input-bg); border-radius: 1rem; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; }
+        .keypad-btn:active { background: var(--main-color); transform: scale(0.95); }
         
+        .avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+        #messages-container { height: calc(100dvh - 140px); overflow-y: auto; }
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--main-color); border-radius: 10px; }
     </style>
 </head>
 <body class="theme-fuchsia">
 
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div class="w-full max-w-sm bg-panel border border-base p-6 rounded-[2.5rem] shadow-2xl">
-            <h1 data-i18n="loginTitle" class="text-xl font-bold text-center mb-6 text-main font-black tracking-widest uppercase">Identity Login</h1>
+            <h1 data-i18n="loginTitle" class="text-xl font-bold text-center mb-6 text-main tracking-widest uppercase">Identity Login</h1>
             
             <div id="login-step-1">
                 <div class="flex justify-center gap-3 mb-6">
@@ -60,22 +44,24 @@
                     <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
                 <div id="animal-grid" class="grid grid-cols-4 gap-3"></div>
-                <button id="btn-next" disabled class="w-full mt-6 btn-main py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg transition-all" data-i18n="nextStep">NEXT STEP</button>
+                <button id="btn-next" disabled class="w-full mt-6 btn-main py-4 rounded-2xl font-black disabled:opacity-20 transition-all" data-i18n="nextStep">NEXT STEP</button>
             </div>
 
-            <div id="login-step-2" class="hidden space-y-4">
-                <div id="id-preview" class="text-center text-5xl mb-2 tracking-[0.2em]"></div>
+            <div id="login-step-2" class="hidden space-y-4 text-center">
+                <div id="id-preview" class="text-5xl mb-2 tracking-[0.2em]"></div>
                 
                 <div id="pin-display" class="flex justify-center gap-4 py-4">
-                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
-                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
-                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
-                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div class="w-3 h-3 rounded-full border-2 border-slate-400"></div>
+                    <div class="w-3 h-3 rounded-full border-2 border-slate-400"></div>
+                    <div class="w-3 h-3 rounded-full border-2 border-slate-400"></div>
+                    <div class="w-3 h-3 rounded-full border-2 border-slate-400"></div>
                 </div>
 
-                <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-3 text-center outline-none text-current">
+                <div id="nickname-area">
+                    <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-3 text-center outline-none text-current mb-4">
+                </div>
 
-                <div class="grid grid-cols-3 gap-3 px-4">
+                <div class="grid grid-cols-3 gap-3">
                     <button class="keypad-btn font-bold text-xl" onclick="pressKey('1')">1</button>
                     <button class="keypad-btn font-bold text-xl" onclick="pressKey('2')">2</button>
                     <button class="keypad-btn font-bold text-xl" onclick="pressKey('3')">3</button>
@@ -95,71 +81,73 @@
         </div>
     </div>
 
-    <div id="chat-screen" class="hidden">
-        <header class="h-16 border-b border-base flex items-center px-4 bg-panel backdrop-blur justify-between shrink-0">
+    <div id="chat-screen" class="hidden flex flex-col h-screen">
+        <header class="h-16 border-b border-base flex items-center px-4 bg-panel justify-between">
             <div class="flex items-center gap-3 overflow-hidden">
-                <span id="header-avatar" class="text-2xl"></span>
+                <div id="header-avatar-box" class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-xl"></div>
                 <div class="truncate">
-                    <h2 id="current-ch-name" class="font-bold text-sm truncate uppercase tracking-tighter"></h2>
-                    <p id="display-date" class="text-[10px] text-main font-mono font-bold"></p>
+                    <h2 id="current-ch-name" class="font-bold text-sm truncate uppercase"></h2>
+                    <p id="display-date" class="text-[10px] text-main font-bold font-mono"></p>
                 </div>
             </div>
-            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl active:scale-90 transition-transform">
-                <i data-lucide="menu" class="w-6 h-6 text-main"></i>
-            </button>
+            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl"><i data-lucide="menu" class="w-6 h-6 text-main"></i></button>
         </header>
         
-        <div id="messages-container" class="p-4 space-y-4 custom-scrollbar"></div>
+        <div id="messages-container" class="p-4 space-y-4"></div>
 
         <div class="p-3 border-t border-base bg-panel safe-bottom">
-            <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
-                <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current">
-                <button type="submit" class="btn-main p-3 rounded-full shadow-lg active:scale-90 transition-transform">
-                    <i data-lucide="send" class="w-5 h-5"></i>
-                </button>
+            <form id="chat-form" class="flex gap-2">
+                <input type="text" id="msg-input" placeholder="Aa..." class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current">
+                <button type="submit" class="btn-main p-3 rounded-full shadow-lg"><i data-lucide="send" class="w-5 h-5"></i></button>
             </form>
         </div>
 
-        <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-panel shadow-2xl border-l border-base transform translate-x-full transition-transform duration-300 z-[110] flex flex-col">
+        <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-panel border-l border-base transform translate-x-full transition-transform duration-300 z-[110] flex flex-col shadow-2xl">
             <div class="p-5 border-b border-base flex justify-between items-center bg-black/5">
-                <span class="font-black text-main uppercase tracking-widest" data-i18n="settings">Settings</span>
+                <span class="font-black text-main uppercase" data-i18n="settings">Settings</span>
                 <button onclick="toggleSideMenu()"><i data-lucide="x"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar text-current">
+            <div class="flex-1 p-5 space-y-6 overflow-y-auto text-current">
                 <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="langTitle">Language</label>
+                    <label class="text-[10px] opacity-60 block uppercase font-black mb-2" data-i18n="langTitle">Language</label>
                     <div class="grid grid-cols-3 gap-2">
-                        <button onclick="setLang('zh')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-zh">繁體</button>
-                        <button onclick="setLang('en')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-en">EN</button>
-                        <button onclick="setLang('ja')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-ja">日本語</button>
+                        <button onclick="setLang('zh')" id="lang-zh" class="py-2 border border-base rounded-xl text-[10px] font-bold">繁體</button>
+                        <button onclick="setLang('en')" id="lang-en" class="py-2 border border-base rounded-xl text-[10px] font-bold">EN</button>
+                        <button onclick="setLang('ja')" id="lang-ja" class="py-2 border border-base rounded-xl text-[10px] font-bold">日本語</button>
                     </div>
                 </div>
                 <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="themeTitle">Theme Color</label>
-                    <div class="flex flex-wrap gap-3">
-                        <button onclick="setTheme('fuchsia')" class="w-10 h-10 rounded-full bg-fuchsia-600 border-2 border-white/20"></button>
-                        <button onclick="setTheme('blue')" class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20"></button>
-                        <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300 shadow-inner"></button>
-                        <button onclick="setTheme('line')" class="w-10 h-10 rounded-full bg-[#06C755] border-2 border-white/20"></button>
+                    <label class="text-[10px] opacity-60 block uppercase font-black mb-2">Avatar URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="custom-avatar-url" placeholder="https://..." class="flex-1 bg-black/5 border border-base rounded-xl px-3 py-2 text-xs outline-none">
+                        <button onclick="updateUserAvatar()" class="btn-main px-3 py-2 rounded-xl text-xs font-bold">SAVE</button>
                     </div>
                 </div>
-                <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-base">
-                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest" data-i18n="adminTitle">User Management (Admin)</label>
+                <div>
+                    <label class="text-[10px] opacity-60 block uppercase font-black mb-2" data-i18n="themeTitle">Theme</label>
+                    <div class="flex gap-3">
+                        <button onclick="setTheme('fuchsia')" class="w-8 h-8 rounded-full bg-fuchsia-600"></button>
+                        <button onclick="setTheme('blue')" class="w-8 h-8 rounded-full bg-blue-600"></button>
+                        <button onclick="setTheme('white')" class="w-8 h-8 rounded-full bg-white border border-slate-300"></button>
+                        <button onclick="setTheme('line')" class="w-8 h-8 rounded-full bg-[#06C755]"></button>
+                    </div>
+                </div>
+                <div id="admin-panel" class="hidden border-t border-base pt-6 space-y-4">
+                    <label class="text-[10px] text-red-500 font-black block uppercase" data-i18n="adminTitle">User Mgmt</label>
                     <div id="user-list" class="space-y-3"></div>
                 </div>
             </div>
             <div class="p-5 border-t border-base">
-                <button id="btn-logout" class="w-full py-4 text-red-500 bg-red-500/10 rounded-2xl text-xs font-black uppercase tracking-widest" data-i18n="logout">Logout</button>
+                <button id="btn-logout" class="w-full py-4 text-red-500 bg-red-500/10 rounded-2xl text-xs font-black uppercase" data-i18n="logout">Logout</button>
             </div>
         </aside>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, deleteDoc, getDocs, limit, updateDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, deleteDoc, getDocs, limit } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-        // Firebase Config (保持原樣)
         const firebaseConfig = {
             apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
             authDomain: "chatroom-89cc9.firebaseapp.com",
@@ -170,84 +158,33 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         const i18n = {
-            zh: {
-                loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入",
-                settings: "系統設定", langTitle: "語系語言", themeTitle: "介面主題",
-                selectDate: "選擇日期歷史", backToday: "返回今天", logout: "登出帳號",
-                adminTitle: "用戶管理 (管理員)", noMsg: "本日尚無訊息", delMsg: "刪除此訊息？",
-                delUser: "確定刪除此用戶？", pinErr: "PIN 碼錯誤", inputNick: "請輸入暱稱", inputPin: "請輸入 PIN"
-            },
-            en: {
-                loginTitle: "Identity Login", nextStep: "Next Step", back: "Back", login: "Login",
-                settings: "Settings", langTitle: "Language", themeTitle: "Theme",
-                selectDate: "History", backToday: "Today", logout: "Logout",
-                adminTitle: "User Mgmt", noMsg: "No messages", delMsg: "Delete?",
-                delUser: "Delete user?", pinErr: "PIN Error", inputNick: "Nickname", inputPin: "PIN"
-            },
-            ja: {
-                loginTitle: "本人認証", nextStep: "次へ", back: "戻る", login: "ログイン",
-                settings: "システム設定", langTitle: "言語設定", themeTitle: "テーマ",
-                selectDate: "履歴を選択", backToday: "今日に戻る", logout: "ログアウト",
-                adminTitle: "ユーザー管理", noMsg: "メッセージはありません", delMsg: "削除しますか？",
-                delUser: "ユーザーを削除しますか？", pinErr: "PINが違います", inputNick: "ニックネームを入力", inputPin: "PIN入力"
-            }
+            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", settings: "系統設定", langTitle: "語系語言", themeTitle: "介面主題", logout: "登出帳號", adminTitle: "用戶管理", noMsg: "無訊息", delMsg: "刪除訊息？", delUser: "刪除用戶？", pinErr: "PIN 錯誤", inputNick: "請輸入暱稱" },
+            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", settings: "Settings", langTitle: "Language", themeTitle: "Theme", logout: "Logout", adminTitle: "User Mgmt", noMsg: "No message", delMsg: "Delete?", delUser: "Delete user?", pinErr: "PIN Err", inputNick: "Input Nickname" },
+            ja: { loginTitle: "本人認証", nextStep: "次へ", back: "戻る", settings: "システム設定", langTitle: "言語設定", themeTitle: "テーマ", logout: "ログアウト", adminTitle: "ユーザー管理", noMsg: "メッセージなし", delMsg: "削除？", delUser: "ユーザー削除？", pinErr: "PINエラー", inputNick: "ニックネームを入力" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
         let currentPin = "";
-        const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
         let selectedAnimals = [];
         let userProfile = null;
-        let currentChatDate = "";
-        let msgUnsubscribe = null;
+        const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
 
-        const getTodayStr = () => new Date().toLocaleDateString('sv');
-
-        // --- Window Actions ---
-        window.setTheme = (theme) => {
-            document.body.className = `theme-${theme}`;
-            localStorage.setItem('chat_theme', theme);
+        window.setTheme = (t) => { document.body.className = `theme-${t}`; localStorage.setItem('chat_theme', t); };
+        window.setLang = (l) => {
+            currentLang = l; localStorage.setItem('chat_lang', l);
+            document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = i18n[l][el.getAttribute('data-i18n')]);
+            ['zh','en','ja'].forEach(x => document.getElementById(`lang-${x}`).className = `py-2 border border-base rounded-xl text-[10px] font-bold ${l===x?'btn-main':'opacity-50'}`);
         };
 
-        window.setLang = (lang) => {
-            currentLang = lang;
-            localStorage.setItem('chat_lang', lang);
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                el.innerText = i18n[lang][key];
-            });
-            document.getElementById('login-name').placeholder = i18n[lang].inputNick;
-            ['zh', 'en', 'ja'].forEach(l => {
-                document.getElementById(`lang-${l}`).className = `py-2 rounded-xl border border-base text-[10px] font-bold ${lang===l?'btn-main shadow-md':'opacity-50'}`;
-            });
-        };
-
-        // Keypad Logic
-        window.pressKey = (k) => {
-            if(k === 'C') {
-                currentPin = "";
-            } else {
-                if(currentPin.length < 8) currentPin += k;
-            }
-            updatePinDots();
-        };
-
-        function updatePinDots() {
-            const dots = document.querySelectorAll('#pin-display div');
-            dots.forEach((d, i) => {
-                d.className = `w-3 h-3 rounded-full transition-all ${i < currentPin.length ? 'bg-main scale-125' : 'bg-slate-300'}`;
-            });
-        }
-
-        // Animal Grid
+        // UI Initialization
         const grid = document.getElementById('animal-grid');
         ANIMALS.forEach(a => {
             const b = document.createElement('button');
-            b.className = "animal-btn text-2xl p-2"; b.innerText = a;
+            b.className = "keypad-btn text-2xl"; b.innerText = a;
             b.onclick = () => { if(selectedAnimals.length < 3) { selectedAnimals.push(a); updateSlots(); } };
             grid.appendChild(b);
         });
@@ -261,10 +198,27 @@
             document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
         }
 
-        document.getElementById('btn-next').onclick = () => {
+        window.pressKey = (k) => {
+            if(k === 'C') currentPin = "";
+            else if(currentPin.length < 4) currentPin += k;
+            updatePinDots();
+        };
+
+        function updatePinDots() {
+            document.querySelectorAll('#pin-display div').forEach((d, i) => {
+                d.className = `w-3 h-3 rounded-full transition-all border-2 ${i < currentPin.length ? 'bg-main border-main scale-125' : 'border-slate-400'}`;
+            });
+        }
+
+        document.getElementById('btn-next').onclick = async () => {
+            const animalId = selectedAnimals.join('');
+            const userSnap = await getDoc(doc(db, 'users', animalId));
+            
+            // 如果用戶已存在，隱藏暱稱輸入框
+            document.getElementById('nickname-area').classList.toggle('hidden', userSnap.exists());
             document.getElementById('login-step-1').classList.add('hidden');
             document.getElementById('login-step-2').classList.remove('hidden');
-            document.getElementById('id-preview').innerText = selectedAnimals.join('');
+            document.getElementById('id-preview').innerText = animalId;
             lucide.createIcons();
         };
 
@@ -277,7 +231,7 @@
         window.loginAction = async () => {
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-            if(currentPin.length < 4) return alert("PIN (min 4)");
+            if(currentPin.length < 4) return;
 
             try {
                 await signInAnonymously(auth);
@@ -289,9 +243,8 @@
                     userProfile = userSnap.data();
                 } else {
                     if (!name) return alert(i18n[currentLang].inputNick);
-                    const userCheck = await getDocs(query(collection(db, 'users'), limit(1)));
-                    const role = userCheck.empty ? 'admin' : 'user';
-                    userProfile = { name, pin: currentPin, animalId, animals: selectedAnimals, role, createdAt: Date.now() };
+                    const isFirst = (await getDocs(query(collection(db, 'users'), limit(1)))).empty;
+                    userProfile = { name, pin: currentPin, animalId, animals: selectedAnimals, role: isFirst ? 'admin' : 'user', customAvatar: '' };
                     await setDoc(userRef, userProfile);
                 }
                 localStorage.setItem('chat_animal_id', animalId);
@@ -302,97 +255,67 @@
         function enterChat() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
-            document.getElementById('header-avatar').innerText = userProfile.animals[0];
-            document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
+            renderHeader();
             if(userProfile.role === 'admin') initAdmin();
-            loadMessages(getTodayStr());
+            loadMessages();
             lucide.createIcons();
         }
 
-        function loadMessages(dateStr) {
-            if(msgUnsubscribe) msgUnsubscribe();
-            currentChatDate = dateStr;
-            document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
-            const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
+        function renderHeader() {
+            const box = document.getElementById('header-avatar-box');
+            box.innerHTML = userProfile.customAvatar ? `<img src="${userProfile.customAvatar}" class="avatar-img">` : userProfile.animals[0];
+            document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
+            document.getElementById('display-date').innerText = `TODAY: ${new Date().toLocaleDateString('sv')}`;
+        }
 
-            msgUnsubscribe = onSnapshot(q, (snap) => {
+        window.updateUserAvatar = async () => {
+            const url = document.getElementById('custom-avatar-url').value;
+            await updateDoc(doc(db, 'users', userProfile.animalId), { customAvatar: url });
+            userProfile.customAvatar = url;
+            renderHeader();
+            alert("Updated!");
+        };
+
+        function loadMessages() {
+            const q = query(collection(db, 'rooms', new Date().toLocaleDateString('sv'), 'messages'), orderBy('timestamp', 'asc'));
+            onSnapshot(q, (snap) => {
                 const container = document.getElementById('messages-container');
-                container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
+                container.innerHTML = "";
                 snap.forEach(d => {
                     const m = d.data();
                     const isMe = m.senderId === userProfile.animalId;
-                    const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                     const msgDiv = document.createElement('div');
                     msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
-                        <div class="w-10 h-10 rounded-2xl bg-slate-500/10 flex shrink-0 items-center justify-center text-xl border border-base">${m.avatar}</div>
-                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[9px] opacity-50 font-black">${m.senderName}</span>
-                                ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500 opacity-50"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
-                            </div>
-                            <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2.5 rounded-2xl text-[14px] ${isMe ? 'btn-main shadow-lg' : 'bg-slate-500/10 border border-base'}">${m.text}</div>
-                                <span class="text-[8px] opacity-40 font-mono mb-1">${time}</span>
+                        <div class="w-10 h-10 rounded-full bg-slate-200 flex shrink-0 items-center justify-center text-xl overflow-hidden border border-base">
+                            ${m.customAvatar ? `<img src="${m.customAvatar}" class="avatar-img">` : m.avatar}
+                        </div>
+                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[70%]">
+                            <span class="text-[9px] opacity-50 mb-1 font-bold">${m.senderName}</span>
+                            <div class="px-4 py-2 rounded-2xl text-[14px] shadow-sm ${isMe ? 'btn-main' : 'bg-[var(--bubble-other)] text-[var(--bubble-text-other)] border border-slate-200'}">
+                                ${m.text}
                             </div>
                         </div>
                     `;
                     container.appendChild(msgDiv);
                 });
-                lucide.createIcons();
                 container.scrollTop = container.scrollHeight;
+                lucide.createIcons();
             });
         }
-
-        window.deleteMsg = async (id) => { if(confirm(i18n[currentLang].delMsg)) await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', id)); };
 
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const input = document.getElementById('msg-input');
-            const text = input.value.trim();
-            if(!text) return;
-            await addDoc(collection(db, 'rooms', getTodayStr(), 'messages'), {
-                text, senderId: userProfile.animalId, senderName: userProfile.name,
-                avatar: userProfile.animals[0], timestamp: Date.now()
+            if(!input.value.trim()) return;
+            await addDoc(collection(db, 'rooms', new Date().toLocaleDateString('sv'), 'messages'), {
+                text: input.value, senderId: userProfile.animalId, senderName: userProfile.name,
+                avatar: userProfile.animals[0], customAvatar: userProfile.customAvatar || '', timestamp: Date.now()
             });
             input.value = "";
         };
 
-        function initAdmin() {
-            document.getElementById('admin-panel').classList.remove('hidden');
-            onSnapshot(collection(db, 'users'), (snap) => {
-                const list = document.getElementById('user-list');
-                list.innerHTML = "";
-                snap.forEach(d => {
-                    const u = d.data();
-                    const item = document.createElement('div');
-                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center group transition-all";
-                    item.innerHTML = `
-                        <div class="flex flex-col">
-                            <span class="font-black text-xs">${u.animals.join('')} ${u.name}</span>
-                            <span class="text-[8px] text-main font-mono">${u.role.toUpperCase()} | PIN: ${u.pin}</span>
-                        </div>
-                        ${u.role !== 'admin' ? 
-                            `<button onclick="deleteUser('${d.id}')" class="w-9 h-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-xl active:bg-red-500 active:text-white transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>` : 
-                            '<i data-lucide="shield-check" class="text-amber-500 w-5 h-5"></i>'}
-                    `;
-                    list.appendChild(item);
-                });
-                lucide.createIcons();
-            });
-        }
-
-        window.deleteUser = async (uid) => {
-            if(confirm(i18n[currentLang].delUser)) await deleteDoc(doc(db, 'users', uid));
-        };
-
-        window.toggleSideMenu = () => {
-            document.getElementById('side-menu').classList.toggle('translate-x-full');
-            lucide.createIcons();
-        };
-
+        window.toggleSideMenu = () => document.getElementById('side-menu').classList.toggle('translate-x-full');
         document.getElementById('btn-logout').onclick = () => { localStorage.clear(); location.reload(); };
 
         (async () => {
@@ -402,10 +325,27 @@
             if(savedId) {
                 const snap = await getDoc(doc(db, 'users', savedId));
                 if(snap.exists()) { userProfile = snap.data(); enterChat(); }
-                else { localStorage.removeItem('chat_animal_id'); }
             }
             lucide.createIcons();
         })();
+
+        function initAdmin() {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            onSnapshot(collection(db, 'users'), (snap) => {
+                const list = document.getElementById('user-list');
+                list.innerHTML = "";
+                snap.forEach(d => {
+                    const u = d.data();
+                    const item = document.createElement('div');
+                    item.className = "p-3 bg-black/5 rounded-xl flex justify-between items-center border border-base";
+                    item.innerHTML = `<div><p class="text-xs font-bold">${u.animals.join('')} ${u.name}</p><p class="text-[8px] opacity-50">PIN: ${u.pin}</p></div>
+                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}`;
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            });
+        }
+        window.deleteUser = async (uid) => { if(confirm(i18n[currentLang].delUser)) await deleteDoc(doc(db, 'users', uid)); };
     </script>
 </body>
 </html>
