@@ -29,26 +29,23 @@
         
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         
-        /* 統一氣泡樣式 (Telegram 風格非對稱圓角) */
-        .msg-bubble-me { 
-            background: var(--main-color); 
-            color: white; 
-            border-radius: 18px 18px 4px 18px; 
+        /* 全局氣泡基礎圓角 */
+        .msg-bubble-me, .msg-bubble-other { 
+            border-radius: 18px; 
             padding: 10px 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 100%;
+            word-wrap: break-word;
         }
-        .msg-bubble-other { 
-            background: var(--msg-other); 
-            color: var(--text-color); 
-            border-radius: 18px 18px 18px 4px; 
-            padding: 10px 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+
+        /* LINE 特殊處理 */
+        .theme-line .msg-bubble-me { background: #86e041; color: #000; border: none; }
+        .theme-line .msg-bubble-other { background: #ffffff; color: #000; border: none; }
         
-        /* LINE 主題氣泡顏色覆蓋 */
-        .theme-line .msg-bubble-me { background: #86e041; color: #000; }
-        .theme-line .msg-bubble-other { background: #ffffff; color: #000; }
-        
+        /* Telegram 特殊圓角設計 */
+        .theme-telegram .msg-bubble-me { background: #2b5278; color: #fff; border: none; border-radius: 18px 18px 4px 18px; }
+        .theme-telegram .msg-bubble-other { background: #242f3d; color: #fff; border: none; border-radius: 18px 18px 18px 4px; }
+
+        /* 數字鍵盤 */
         .keypad-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 1rem; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; transition: all 0.1s; width: 100%; }
         .keypad-btn:active { background: var(--main-color); color: white; transform: scale(0.95); }
 
@@ -136,9 +133,9 @@
                     <div class="flex gap-3 flex-wrap">
                         <button onclick="setTheme('fuchsia')" class="w-10 h-10 rounded-full bg-fuchsia-600 border-2 border-white/20"></button>
                         <button onclick="setTheme('blue')" class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20"></button>
-                        <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300 shadow-inner"></button>
+                        <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300"></button>
                         <button onclick="setTheme('line')" class="w-10 h-10 rounded-full bg-[#06c755] border-2 border-white/20"></button>
-                        <button onclick="setTheme('telegram')" class="w-10 h-10 rounded-full bg-[#24A1DE] border-2 border-white/20"></button>
+                        <button onclick="setTheme('telegram')" class="w-10 h-10 rounded-full bg-[#24A1DE] border-2 border-white/20 flex items-center justify-center"><i data-lucide="send" class="w-4 h-4 text-white"></i></button>
                     </div>
                 </div>
                 <div>
@@ -183,25 +180,22 @@
         const db = getFirestore(app);
 
         const i18n = {
-            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "系統設定", langTitle: "語系語言", themeTitle: "介面主題", selectDate: "選擇日期歷史", backToday: "返回今天", logout: "登出帳號", adminTitle: "用戶管理 (管理員)", noMsg: "本日尚無訊息", delMsg: "刪除此訊息？", delUser: "確定註銷此用戶？", pinErr: "PIN 碼錯誤", inputNick: "請輸入暱稱", read: "已讀" },
-            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "History", backToday: "Today", logout: "Logout", adminTitle: "Admin Panel", noMsg: "No messages", delMsg: "Delete?", delUser: "Delete user?", pinErr: "PIN Error", inputNick: "Enter Nickname", read: "Read" },
-            ja: { loginTitle: "本人確認ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴選択", backToday: "今日に戻る", logout: "ログアウト", adminTitle: "ユーザー管理", noMsg: "メッセージはありません", delMsg: "削除しますか？", delUser: "ユーザーを削除？", pinErr: "PINコードが違います", inputNick: "ニックネーム入力", read: "既読" }
+            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "系統設定", langTitle: "語系語言", themeTitle: "介面主題", selectDate: "選擇日期歷史", backToday: "返回今天", logout: "登出帳號", adminTitle: "用戶管理 (管理員)", noMsg: "本日尚無訊息", delMsg: "刪除此訊息？", delUser: "確定註銷此用戶？", pinErr: "PIN 碼錯誤", inputNick: "請輸入暱稱" },
+            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "History", backToday: "Today", logout: "Logout", adminTitle: "Admin Panel", noMsg: "No messages", delMsg: "Delete?", delUser: "Delete user?", pinErr: "PIN Error", inputNick: "Enter Nickname" },
+            ja: { loginTitle: "本人確認ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴選択", backToday: "今日に戻る", logout: "ログアウト", adminTitle: "ユーザー管理", noMsg: "メッセージはありません", delMsg: "削除しますか？", delUser: "ユーザーを削除？", pinErr: "PINコードが違います", inputNick: "ニックネーム入力" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
         const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
         let selectedAnimals = [];
         let userProfile = null;
-        let otherUsersStatus = {}; // 存放其他人的最後讀取時間
         let currentChatDate = "";
         let msgUnsubscribe = null;
-        let statusUnsubscribe = null;
         let fpInstance = null;
         let tempPin = "";
 
         const getTodayStr = () => new Date().toLocaleDateString('sv');
 
-        // --- 全域函數 ---
         window.setTheme = (theme) => {
             document.body.className = `theme-${theme}`;
             localStorage.setItem('chat_theme', theme);
@@ -226,7 +220,8 @@
         function updatePinDots() {
             const dots = document.querySelectorAll('#pin-display-dots div');
             dots.forEach((dot, i) => {
-                dot.style.background = i < tempPin.length ? 'var(--main-color)' : 'transparent';
+                if(i < tempPin.length) dot.style.background = 'var(--main-color)';
+                else dot.style.background = 'transparent';
             });
         }
 
@@ -256,6 +251,13 @@
             document.getElementById('id-preview').innerText = animalId;
         };
 
+        document.getElementById('btn-back').onclick = () => {
+            document.getElementById('login-step-1').classList.remove('hidden');
+            document.getElementById('login-step-2').classList.add('hidden');
+            tempPin = "";
+            updatePinDots();
+        };
+
         window.handleAuth = async () => {
             const pin = tempPin;
             const name = document.getElementById('login-name').value;
@@ -271,7 +273,7 @@
                 } else {
                     if (!name) return alert(i18n[currentLang].inputNick);
                     const userCheck = await getDocs(query(collection(db, 'users'), limit(1)));
-                    userProfile = { name, pin, animalId, animals: selectedAnimals, role: userCheck.empty ? 'admin' : 'user', createdAt: Date.now(), avatarUrl: "", lastRead: Date.now() };
+                    userProfile = { name, pin, animalId, animals: selectedAnimals, role: userCheck.empty ? 'admin' : 'user', createdAt: Date.now(), avatarUrl: "" };
                     await setDoc(userRef, userProfile);
                 }
                 localStorage.setItem('chat_animal_id', animalId);
@@ -279,11 +281,9 @@
             } catch (e) { alert(e.message); }
         };
 
-        async function updateMyStatus() {
-            if (!userProfile) return;
-            const now = Date.now();
-            await updateDoc(doc(db, 'users', userProfile.animalId), { lastRead: now });
-            userProfile.lastRead = now;
+        function getAvatarHtml(profile, sizeClass = "w-10 h-10") {
+            if (profile.avatarUrl) return `<img src="${profile.avatarUrl}" class="${sizeClass} rounded-2xl object-cover border border-base">`;
+            return `<div class="${sizeClass} rounded-2xl bg-slate-500/10 flex items-center justify-center text-xl border border-base">${profile.animals ? profile.animals[0] : (profile.avatar || '👤')}</div>`;
         }
 
         function enterChat() {
@@ -292,16 +292,7 @@
             const avatarContainer = document.getElementById('header-avatar-container');
             avatarContainer.innerHTML = getAvatarHtml(userProfile, "w-full h-full");
             document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
-            
-            // 監聽所有用戶的最後讀取狀態
-            if (statusUnsubscribe) statusUnsubscribe();
-            statusUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-                snap.forEach(d => {
-                    if(d.id !== userProfile.animalId) otherUsersStatus[d.id] = d.data().lastRead || 0;
-                });
-                if(currentChatDate) loadMessages(currentChatDate); // 狀態更新後重刷已讀標記
-            });
-
+            document.getElementById('avatar-url-input').value = userProfile.avatarUrl || "";
             if(!fpInstance) {
                 fpInstance = flatpickr("#date-picker-input", {
                     defaultDate: "today", maxDate: "today", theme: "dark",
@@ -313,59 +304,7 @@
             }
             if(userProfile.role === 'admin') initAdmin();
             loadMessages(getTodayStr());
-            updateMyStatus();
             lucide.createIcons();
-        }
-
-        function loadMessages(dateStr) {
-            if(msgUnsubscribe) msgUnsubscribe();
-            currentChatDate = dateStr;
-            document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
-            
-            // 如果進到今天的房間，更新自己的讀取時間
-            if(dateStr === getTodayStr()) updateMyStatus();
-
-            const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
-            msgUnsubscribe = onSnapshot(q, (snap) => {
-                const container = document.getElementById('messages-container');
-                container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
-                
-                snap.forEach(d => {
-                    const m = d.data();
-                    const isMe = m.senderId === userProfile.animalId;
-                    const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
-                    
-                    // 判斷是否有人已讀 (除了我以外，有沒有人的 lastRead 晚於訊息時間)
-                    const isReadByOthers = Object.values(otherUsersStatus).some(lastRead => lastRead > m.timestamp);
-
-                    const msgDiv = document.createElement('div');
-                    msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
-                    msgDiv.innerHTML = `
-                        <div class="flex-shrink-0">${getAvatarHtml({avatarUrl: m.avatarUrl, avatar: m.avatar}, "w-9 h-9")}</div>
-                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
-                            <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
-                            <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="${isMe ? 'msg-bubble-me' : 'msg-bubble-other'}">
-                                    ${m.text}
-                                </div>
-                                <div class="flex flex-col items-center">
-                                    ${isMe && isReadByOthers ? `<span class="text-[8px] text-main font-bold mb-0.5">${i18n[currentLang].read}</span>` : ''}
-                                    <span class="text-[8px] opacity-40 font-mono">${time}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(msgDiv);
-                });
-                container.scrollTop = container.scrollHeight;
-                lucide.createIcons();
-            });
-        }
-
-        // 其他功能維持不變...
-        function getAvatarHtml(profile, sizeClass = "w-10 h-10") {
-            if (profile.avatarUrl) return `<img src="${profile.avatarUrl}" class="${sizeClass} rounded-2xl object-cover border border-base">`;
-            return `<div class="${sizeClass} rounded-2xl bg-slate-500/10 flex items-center justify-center text-xl border border-base">${profile.animals ? profile.animals[0] : (profile.avatar || '👤')}</div>`;
         }
 
         window.updateAvatar = async () => {
@@ -374,6 +313,52 @@
             userProfile.avatarUrl = url;
             enterChat();
             alert("Avatar Updated");
+        };
+
+        function loadMessages(dateStr) {
+            if(msgUnsubscribe) msgUnsubscribe();
+            currentChatDate = dateStr;
+            document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
+            const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
+            msgUnsubscribe = onSnapshot(q, (snap) => {
+                const container = document.getElementById('messages-container');
+                container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
+                snap.forEach(d => {
+                    const m = d.data();
+                    const isMe = m.senderId === userProfile.animalId;
+                    const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
+                    msgDiv.innerHTML = `
+                        <div class="flex-shrink-0">${getAvatarHtml({avatarUrl: m.avatarUrl, avatar: m.avatar}, "w-9 h-9")}</div>
+                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
+                            <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
+                            <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
+                                <div class="msg-bubble-${isMe ? 'me btn-main shadow-md' : 'other bg-panel border border-base'}">
+                                    ${m.text}
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500/30 hover:text-red-500 mb-1"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                                    <span class="text-[8px] opacity-40 font-mono">${time}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(msgDiv);
+                });
+                lucide.createIcons();
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        window.deleteMsg = async (msgId) => {
+            if(confirm(i18n[currentLang].delMsg)) {
+                try {
+                    await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
+                } catch (e) {
+                    alert("Delete failed: " + e.message);
+                }
+            }
         };
 
         document.getElementById('chat-form').onsubmit = async (e) => {
@@ -387,12 +372,41 @@
                 avatar: userProfile.animals[0], avatarUrl: userProfile.avatarUrl || "", timestamp: Date.now()
             });
             input.value = "";
-            updateMyStatus(); // 送出訊息也更新讀取狀態
             if(currentChatDate !== today) goToday();
         };
 
+        function initAdmin() {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            onSnapshot(collection(db, 'users'), (snap) => {
+                const list = document.getElementById('user-list');
+                list.innerHTML = "";
+                snap.forEach(d => {
+                    const u = d.data();
+                    const item = document.createElement('div');
+                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            ${getAvatarHtml(u, "w-8 h-8")}
+                            <div class="flex flex-col">
+                                <span class="font-bold text-xs">${u.name}</span>
+                                <span class="text-[8px] opacity-50 font-mono">PIN: ${u.pin}</span>
+                            </div>
+                        </div>
+                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="user-x" class="w-4 h-4"></i></button>` : '<i data-lucide="shield" class="text-amber-500 w-4 h-4"></i>'}
+                    `;
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            });
+        }
+
+        window.deleteUser = async (uid) => {
+            if(confirm(i18n[currentLang].delUser)) await deleteDoc(doc(db, 'users', uid));
+        };
+
         window.toggleSideMenu = () => {
-            document.getElementById('side-menu').classList.toggle('translate-x-full');
+            const menu = document.getElementById('side-menu');
+            menu.classList.toggle('translate-x-full');
             lucide.createIcons();
         };
 
