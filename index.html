@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ChatApp - Pro Admin</title>
+    <title>ChatApp - Pro Ultra</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -17,37 +17,33 @@
         /* 主題顏色定義 */
         .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #334155; }
         .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #1e293b; }
-        .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --msg-other: #f1f5f9; }
-        /* LINE 主題優化 */
-        .theme-line { --main-color: #06c755; --bg-color: #8babd8; --panel-color: #ffffff; --text-color: #000000; --border-color: rgba(0,0,0,0.08); --input-bg: #ffffff; --msg-other: #ffffff; }
+        .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --msg-other: #e2e8f0; }
+        .theme-line { --main-color: #06c755; --bg-color: #8babd2; --panel-color: #ffffff; --text-color: #111111; --border-color: rgba(0,0,0,0.08); --input-bg: #ffffff; --msg-other: #ffffff; }
 
         body { background: var(--bg-color); color: var(--text-color); transition: background 0.3s; }
         .bg-panel { background: var(--panel-color); }
         .text-main { color: var(--main-color); }
         .btn-main { background: var(--main-color); color: white; }
         .border-base { border-color: var(--border-color); }
-
-        #messages-container { height: calc(100dvh - 64px - 80px); overflow-y: auto; }
-        .animal-btn { aspect-ratio: 1; background: var(--input-bg); border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 1px solid var(--border-color); }
         
+        #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
+        #messages-container { flex: 1; overflow-y: auto; }
+        
+        /* LINE 樣式微調 */
+        .theme-line .msg-bubble-me { background: #86e041; color: #000; border: none; }
+        .theme-line .msg-bubble-other { background: #ffffff; color: #000; border: none; }
+
         /* 數字鍵盤樣式 */
-        .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .num-btn { background: var(--input-bg); padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; border: 1px solid var(--border-color); }
+        .keypad-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; font-weight: bold; font-size: 1.25rem; transition: all 0.1s; }
+        .keypad-btn:active { background: var(--main-color); color: white; transform: scale(0.95); }
 
-        /* LINE 訊息泡泡特定修正 */
-        .theme-line .msg-bubble-me { background: #95ec69; color: #000; border: none; }
-        .theme-line .msg-bubble-other { background: #ffffff; color: #000; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        
+        .animal-btn { aspect-ratio: 1; background: var(--input-bg); border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border-color); }
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--main-color); border-radius: 10px; }
-
-        .avatar-img { width: 40px; height: 40px; border-radius: 12px; object-fit: cover; }
+        .avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
     </style>
 </head>
 <body class="theme-fuchsia">
-
-    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div class="w-full max-w-sm bg-panel border border-base p-6 rounded-[2.5rem] shadow-2xl">
             <h1 data-i18n="loginTitle" class="text-xl font-bold text-center mb-6 text-main tracking-widest uppercase">Identity Login</h1>
             
@@ -57,64 +53,64 @@
                     <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
                     <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
-                <div id="animal-grid" class="grid grid-cols-4 gap-3"></div>
-                <button id="btn-next" disabled class="w-full mt-6 btn-main py-4 rounded-2xl font-black disabled:opacity-20 transition-all" data-i18n="nextStep">NEXT STEP</button>
+                <div id="animal-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
+                <button id="btn-next" disabled class="w-full btn-main py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg" data-i18n="nextStep">NEXT STEP</button>
             </div>
 
             <div id="login-step-2" class="hidden space-y-4">
-                <div id="id-preview" class="text-center text-5xl mb-4 tracking-[0.2em]"></div>
+                <div id="id-preview" class="text-center text-5xl mb-2 tracking-[0.2em]"></div>
                 
-                <div class="relative w-full h-14 bg-black/20 rounded-2xl flex items-center justify-center gap-2">
-                    <div id="pin-display" class="flex gap-2"></div>
+                <div class="flex justify-center gap-2 mb-4" id="pin-display-dots">
+                    <div class="w-3 h-3 rounded-full border border-base"></div>
+                    <div class="w-3 h-3 rounded-full border border-base"></div>
+                    <div class="w-3 h-3 rounded-full border border-base"></div>
+                    <div class="w-3 h-3 rounded-full border border-base"></div>
                 </div>
 
-                <div id="nick-container">
+                <div id="nickname-section">
                     <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-4 text-center outline-none text-current">
                 </div>
 
-                <div class="numpad-grid">
-                    <button onclick="pressNum('1')" class="num-btn">1</button>
-                    <button onclick="pressNum('2')" class="num-btn">2</button>
-                    <button onclick="pressNum('3')" class="num-btn">3</button>
-                    <button onclick="pressNum('4')" class="num-btn">4</button>
-                    <button onclick="pressNum('5')" class="num-btn">5</button>
-                    <button onclick="pressNum('6')" class="num-btn">6</button>
-                    <button onclick="pressNum('7')" class="num-btn">7</button>
-                    <button onclick="pressNum('8')" class="num-btn">8</button>
-                    <button onclick="pressNum('9')" class="num-btn">9</button>
-                    <button onclick="pressNum('C')" class="num-btn text-red-500">C</button>
-                    <button onclick="pressNum('0')" class="num-btn">0</button>
-                    <button onclick="pressNum('⌫')" class="num-btn">⌫</button>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="keypad-btn" onclick="pressKey('1')">1</button>
+                    <button class="keypad-btn" onclick="pressKey('2')">2</button>
+                    <button class="keypad-btn" onclick="pressKey('3')">3</button>
+                    <button class="keypad-btn" onclick="pressKey('4')">4</button>
+                    <button class="keypad-btn" onclick="pressKey('5')">5</button>
+                    <button class="keypad-btn" onclick="pressKey('6')">6</button>
+                    <button class="keypad-btn" onclick="pressKey('7')">7</button>
+                    <button class="keypad-btn" onclick="pressKey('8')">8</button>
+                    <button class="keypad-btn" onclick="pressKey('9')">9</button>
+                    <button class="keypad-btn text-red-500" onclick="pressKey('C')">C</button>
+                    <button class="keypad-btn" onclick="pressKey('0')">0</button>
+                    <button class="keypad-btn text-main" onclick="handleAuth()"><i data-lucide="check"></i></button>
                 </div>
 
-                <div class="flex gap-2">
-                    <button id="btn-back" class="flex-1 bg-slate-500/20 py-4 rounded-2xl font-bold" data-i18n="back">BACK</button>
-                    <button id="btn-login" class="flex-[2] btn-main py-4 rounded-2xl font-black" data-i18n="login">LOGIN</button>
-                </div>
+                <button id="btn-back" class="w-full bg-slate-500/20 py-3 rounded-2xl font-bold text-xs" data-i18n="back">BACK</button>
             </div>
         </div>
     </div>
 
-    <div id="chat-screen" class="hidden flex flex-col h-screen">
+    <div id="chat-screen" class="hidden">
         <header class="h-16 border-b border-base flex items-center px-4 bg-panel backdrop-blur justify-between shrink-0">
             <div class="flex items-center gap-3 overflow-hidden">
-                <div id="header-avatar-box"></div>
+                <div id="header-avatar-container" class="w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center text-2xl border border-base overflow-hidden"></div>
                 <div class="truncate">
                     <h2 id="current-ch-name" class="font-bold text-sm truncate uppercase tracking-tighter"></h2>
                     <p id="display-date" class="text-[10px] text-main font-mono font-bold"></p>
                 </div>
             </div>
-            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl active:scale-90 transition-transform">
+            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl">
                 <i data-lucide="menu" class="w-6 h-6 text-main"></i>
             </button>
         </header>
         
-        <div id="messages-container" class="p-4 space-y-4 custom-scrollbar"></div>
+        <div id="messages-container" class="p-4 space-y-4 overflow-y-auto"></div>
 
         <div class="p-3 border-t border-base bg-panel safe-bottom">
             <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
                 <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current">
-                <button type="submit" class="btn-main p-3 rounded-full shadow-lg active:scale-90 transition-transform">
+                <button type="submit" class="btn-main p-3 rounded-full shadow-lg">
                     <i data-lucide="send" class="w-5 h-5"></i>
                 </button>
             </form>
@@ -125,17 +121,9 @@
                 <span class="font-black text-main uppercase tracking-widest" data-i18n="settings">Settings</span>
                 <button onclick="toggleSideMenu()"><i data-lucide="x"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
+            <div class="flex-1 overflow-y-auto p-5 space-y-8">
                 <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest">Avatar Image URL</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="avatar-url-input" placeholder="https://..." class="flex-1 bg-black/5 border border-base rounded-xl px-4 py-2 text-xs outline-none">
-                        <button onclick="updateAvatar()" class="px-4 py-2 btn-main rounded-xl text-xs font-bold">SAVE</button>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="langTitle">Language</label>
+                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black" data-i18n="langTitle">Language</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button onclick="setLang('zh')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-zh">繁體</button>
                         <button onclick="setLang('en')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-en">EN</button>
@@ -143,16 +131,28 @@
                     </div>
                 </div>
                 <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="themeTitle">Theme Color</label>
-                    <div class="flex gap-3">
+                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black" data-i18n="themeTitle">Theme Color</label>
+                    <div class="flex gap-3 flex-wrap">
                         <button onclick="setTheme('fuchsia')" class="w-10 h-10 rounded-full bg-fuchsia-600 border-2 border-white/20"></button>
                         <button onclick="setTheme('blue')" class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20"></button>
-                        <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300 shadow-inner"></button>
-                        <button onclick="setTheme('line')" class="w-10 h-10 rounded-full bg-[#06c755] border-2 border-white/20"></button>
+                        <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300"></button>
+                        <button onclick="setTheme('line')" class="w-10 h-10 rounded-full bg-[#06c755] border-2 border-white/20 flex items-center justify-center text-[8px] font-bold text-white">LINE</button>
                     </div>
                 </div>
+                <div>
+                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black">Avatar Image URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="avatar-url-input" placeholder="https://..." class="flex-1 bg-black/5 border border-base rounded-xl px-3 py-2 text-xs outline-none">
+                        <button onclick="updateAvatar()" class="btn-main px-4 rounded-xl text-xs">Save</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black" data-i18n="selectDate">Select Date</label>
+                    <input type="text" id="date-picker-input" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-3 text-sm text-center font-bold mb-3 text-current">
+                    <button onclick="goToday()" class="w-full py-3 bg-black/5 text-main rounded-xl text-xs font-bold border border-base" data-i18n="backToday">Back to Today</button>
+                </div>
                 <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-base">
-                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest" data-i18n="adminTitle">User Mgmt (Admin)</label>
+                    <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest" data-i18n="adminTitle">User Management</label>
                     <div id="user-list" class="space-y-3"></div>
                 </div>
             </div>
@@ -181,19 +181,23 @@
         const db = getFirestore(app);
 
         const i18n = {
-            zh: { loginTitle: "身份驗證", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除訊息？", delUser: "刪除此用戶？", pinErr: "PIN 錯誤", inputNick: "請輸入暱稱" },
-            en: { loginTitle: "Identity", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Lang", themeTitle: "Theme", logout: "Logout", adminTitle: "User Mgmt", noMsg: "No messages", delMsg: "Delete?", delUser: "Delete User?", pinErr: "PIN Error", inputNick: "Enter Nickname" },
-            ja: { loginTitle: "認証", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", logout: "ログアウト", adminTitle: "ユーザー管理", noMsg: "メッセージなし", delMsg: "削除しますか？", delUser: "ユーザーを削除？", pinErr: "PINコードの間違い", inputNick: "ニックネームを入力" }
+            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "系統設定", langTitle: "語系語言", themeTitle: "介面主題", selectDate: "選擇日期歷史", backToday: "返回今天", logout: "登出帳號", adminTitle: "用戶管理 (管理員)", noMsg: "本日尚無訊息", delMsg: "刪除此訊息？", delUser: "確定註銷此用戶？", pinErr: "PIN 碼錯誤", inputNick: "請輸入暱稱" },
+            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "History", backToday: "Today", logout: "Logout", adminTitle: "Admin Panel", noMsg: "No messages", delMsg: "Delete?", delUser: "Delete user?", pinErr: "PIN Error", inputNick: "Enter Nickname" },
+            ja: { loginTitle: "本人確認ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴選択", backToday: "今日に戻る", logout: "ログアウト", adminTitle: "ユーザー管理", noMsg: "メッセージはありません", delMsg: "削除しますか？", delUser: "ユーザーを削除？", pinErr: "PINコードが違います", inputNick: "ニックネーム入力" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
         const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
         let selectedAnimals = [];
-        let pinInput = "";
         let userProfile = null;
-        let currentChatDate = new Date().toLocaleDateString('sv');
+        let currentChatDate = "";
         let msgUnsubscribe = null;
+        let fpInstance = null;
+        let tempPin = "";
 
+        const getTodayStr = () => new Date().toLocaleDateString('sv');
+
+        // --- 全域函數 ---
         window.setTheme = (theme) => {
             document.body.className = `theme-${theme}`;
             localStorage.setItem('chat_theme', theme);
@@ -203,29 +207,24 @@
             currentLang = lang;
             localStorage.setItem('chat_lang', lang);
             document.querySelectorAll('[data-i18n]').forEach(el => {
-                el.innerText = i18n[lang][el.getAttribute('data-i18n')];
+                const key = el.getAttribute('data-i18n');
+                el.innerText = i18n[lang][key];
             });
-            ['lang-zh', 'lang-en', 'lang-ja'].forEach(id => {
-                document.getElementById(id).className = `py-2 rounded-xl border border-base text-[10px] font-bold ${id==='lang-'+lang?'btn-main':'opacity-50'}`;
-            });
+            lucide.createIcons();
         };
 
-        // --- PIN 鍵盤邏輯 ---
-        window.pressNum = (n) => {
-            if (n === 'C') pinInput = "";
-            else if (n === '⌫') pinInput = pinInput.slice(0, -1);
-            else if (pinInput.length < 8) pinInput += n;
-            renderPin();
+        window.pressKey = (k) => {
+            if(k === 'C') { tempPin = ""; }
+            else if(tempPin.length < 8) { tempPin += k; }
+            updatePinDots();
         };
 
-        function renderPin() {
-            const container = document.getElementById('pin-display');
-            container.innerHTML = "";
-            for (let i = 0; i < pinInput.length; i++) {
-                const dot = document.createElement('div');
-                dot.className = "w-3 h-3 rounded-full bg-main animate-pulse";
-                container.appendChild(dot);
-            }
+        function updatePinDots() {
+            const dots = document.querySelectorAll('#pin-display-dots div');
+            dots.forEach((dot, i) => {
+                if(i < tempPin.length) dot.style.background = 'var(--main-color)';
+                else dot.style.background = 'transparent';
+            });
         }
 
         // --- 登入流程 ---
@@ -248,11 +247,15 @@
 
         document.getElementById('btn-next').onclick = async () => {
             const animalId = selectedAnimals.join('');
-            const userRef = doc(db, 'users', animalId);
-            const userSnap = await getDoc(userRef);
+            const userSnap = await getDoc(doc(db, 'users', animalId));
             
-            // 如果用戶已存在，隱藏暱稱輸入框
-            document.getElementById('nick-container').classList.toggle('hidden', userSnap.exists());
+            // 如果用戶存在，隱藏暱稱輸入
+            if(userSnap.exists()) {
+                document.getElementById('nickname-section').classList.add('hidden');
+            } else {
+                document.getElementById('nickname-section').classList.remove('hidden');
+            }
+            
             document.getElementById('login-step-1').classList.add('hidden');
             document.getElementById('login-step-2').classList.remove('hidden');
             document.getElementById('id-preview').innerText = animalId;
@@ -261,13 +264,16 @@
         document.getElementById('btn-back').onclick = () => {
             document.getElementById('login-step-1').classList.remove('hidden');
             document.getElementById('login-step-2').classList.add('hidden');
-            pinInput = ""; renderPin();
+            tempPin = "";
+            updatePinDots();
         };
 
-        document.getElementById('btn-login').onclick = async () => {
-            const animalId = selectedAnimals.join('');
+        window.handleAuth = async () => {
+            const pin = tempPin;
             const name = document.getElementById('login-name').value;
-            if(pinInput.length < 4) return alert("PIN (min 4)");
+            const animalId = selectedAnimals.join('');
+
+            if(pin.length < 4) return alert("PIN (min 4 digits)");
 
             try {
                 await signInAnonymously(auth);
@@ -275,17 +281,12 @@
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pinInput) return alert(i18n[currentLang].pinErr);
+                    if (userSnap.data().pin !== pin) return alert(i18n[currentLang].pinErr);
                     userProfile = userSnap.data();
                 } else {
                     if (!name) return alert(i18n[currentLang].inputNick);
                     const userCheck = await getDocs(query(collection(db, 'users'), limit(1)));
-                    userProfile = { 
-                        name, pin: pinInput, animalId, 
-                        animals: selectedAnimals, 
-                        role: userCheck.empty ? 'admin' : 'user', 
-                        avatarUrl: "", createdAt: Date.now() 
-                    };
+                    userProfile = { name, pin, animalId, animals: selectedAnimals, role: userCheck.empty ? 'admin' : 'user', createdAt: Date.now(), avatarUrl: "" };
                     await setDoc(userRef, userProfile);
                 }
                 localStorage.setItem('chat_animal_id', animalId);
@@ -293,83 +294,99 @@
             } catch (e) { alert(e.message); }
         };
 
+        function getAvatarHtml(profile, sizeClass = "w-10 h-10") {
+            if (profile.avatarUrl) {
+                return `<img src="${profile.avatarUrl}" class="${sizeClass} rounded-2xl object-cover border border-base">`;
+            }
+            return `<div class="${sizeClass} rounded-2xl bg-slate-500/10 flex items-center justify-center text-xl border border-base">${profile.animals ? profile.animals[0] : (profile.avatar || '👤')}</div>`;
+        }
+
         function enterChat() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
             
-            const avatarHtml = userProfile.avatarUrl 
-                ? `<img src="${userProfile.avatarUrl}" class="avatar-img">`
-                : `<div class="w-10 h-10 rounded-2xl bg-slate-500/10 flex items-center justify-center text-xl border border-base">${userProfile.animals[0]}</div>`;
+            const avatarContainer = document.getElementById('header-avatar-container');
+            avatarContainer.innerHTML = getAvatarHtml(userProfile, "w-full h-full");
             
-            document.getElementById('header-avatar-box').innerHTML = avatarHtml;
             document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
-            
+            document.getElementById('avatar-url-input').value = userProfile.avatarUrl || "";
+
+            if(!fpInstance) {
+                fpInstance = flatpickr("#date-picker-input", {
+                    defaultDate: "today", maxDate: "today", theme: "dark",
+                    onChange: ([date]) => loadMessages(date.toLocaleDateString('sv'))
+                });
+            }
             if(userProfile.role === 'admin') initAdmin();
-            loadMessages(currentChatDate);
+            loadMessages(getTodayStr());
             lucide.createIcons();
         }
 
         window.updateAvatar = async () => {
             const url = document.getElementById('avatar-url-input').value;
-            if(!url) return;
             await updateDoc(doc(db, 'users', userProfile.animalId), { avatarUrl: url });
             userProfile.avatarUrl = url;
             enterChat();
-            alert("Updated!");
+            alert("Avatar Updated");
         };
 
         function loadMessages(dateStr) {
             if(msgUnsubscribe) msgUnsubscribe();
+            currentChatDate = dateStr;
             document.getElementById('display-date').innerText = `ROOM: ${dateStr}`;
             const q = query(collection(db, 'rooms', dateStr, 'messages'), orderBy('timestamp', 'asc'));
-
+            
             msgUnsubscribe = onSnapshot(q, (snap) => {
                 const container = document.getElementById('messages-container');
-                container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs uppercase">${i18n[currentLang].noMsg}</div>` : "";
+                container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
+                
                 snap.forEach(d => {
                     const m = d.data();
                     const isMe = m.senderId === userProfile.animalId;
                     const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                     
-                    const avatarContent = m.senderAvatar 
-                        ? `<img src="${m.senderAvatar}" class="w-10 h-10 rounded-2xl object-cover border border-base">`
-                        : `<div class="w-10 h-10 rounded-2xl bg-slate-500/10 flex items-center justify-center text-xl border border-base">${m.animalEmoji}</div>`;
-
                     const msgDiv = document.createElement('div');
                     msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
-                        <div class="shrink-0">${avatarContent}</div>
+                        <div class="flex-shrink-0">${getAvatarHtml({avatarUrl: m.avatarUrl, avatar: m.avatar}, "w-9 h-9")}</div>
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[9px] opacity-50 font-black">${m.senderName}</span>
-                            </div>
+                            <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
                             <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'msg-bubble-me btn-main' : 'msg-bubble-other bg-panel border border-base'}">
+                                <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'msg-bubble-me btn-main shadow-md' : 'msg-bubble-other bg-panel border border-base'}">
                                     ${m.text}
                                 </div>
-                                <span class="text-[8px] opacity-40 font-mono mb-1 shrink-0">${time}</span>
+                                <div class="flex flex-col items-center">
+                                    ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500/30 hover:text-red-500 mb-1"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                                    <span class="text-[8px] opacity-40 font-mono">${time}</span>
+                                </div>
                             </div>
                         </div>
                     `;
                     container.appendChild(msgDiv);
                 });
+                lucide.createIcons();
                 container.scrollTop = container.scrollHeight;
             });
         }
 
+        window.deleteMsg = async (msgId) => {
+            if(confirm(i18n[currentLang].delMsg)) {
+                await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
+            }
+        };
+
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const input = document.getElementById('msg-input');
-            if(!input.value.trim()) return;
-            await addDoc(collection(db, 'rooms', currentChatDate, 'messages'), {
-                text: input.value.trim(), 
-                senderId: userProfile.animalId, 
-                senderName: userProfile.name,
-                senderAvatar: userProfile.avatarUrl || "",
-                animalEmoji: userProfile.animals[0],
-                timestamp: Date.now()
+            const text = input.value.trim();
+            if(!text) return;
+            const today = getTodayStr();
+            await addDoc(collection(db, 'rooms', today, 'messages'), {
+                text, senderId: userProfile.animalId, senderName: userProfile.name,
+                avatar: userProfile.animals[0], avatarUrl: userProfile.avatarUrl || "", timestamp: Date.now()
             });
             input.value = "";
+            if(currentChatDate !== today) goToday();
         };
 
         function initAdmin() {
@@ -380,11 +397,14 @@
                 snap.forEach(d => {
                     const u = d.data();
                     const item = document.createElement('div');
-                    item.className = "p-4 bg-black/5 rounded-2xl text-xs border border-base flex justify-between items-center";
+                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center";
                     item.innerHTML = `
-                        <div class="flex flex-col">
-                            <span class="font-black">${u.animals.join('')} ${u.name}</span>
-                            <span class="text-[9px] text-main font-mono">PIN: ${u.pin}</span>
+                        <div class="flex items-center gap-3">
+                            ${getAvatarHtml(u, "w-8 h-8")}
+                            <div class="flex flex-col">
+                                <span class="font-bold text-xs">${u.name}</span>
+                                <span class="text-[8px] opacity-50 font-mono">PIN: ${u.pin}</span>
+                            </div>
                         </div>
                         ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="user-x" class="w-4 h-4"></i></button>` : '<i data-lucide="shield" class="text-amber-500 w-4 h-4"></i>'}
                     `;
@@ -398,10 +418,21 @@
             if(confirm(i18n[currentLang].delUser)) await deleteDoc(doc(db, 'users', uid));
         };
 
-        window.toggleSideMenu = () => document.getElementById('side-menu').classList.toggle('translate-x-full');
+        window.toggleSideMenu = () => {
+            document.getElementById('side-menu').classList.toggle('translate-x-full');
+            lucide.createIcons();
+        };
+
+        window.goToday = () => {
+            const today = getTodayStr();
+            if(fpInstance) fpInstance.setDate(today);
+            loadMessages(today);
+            document.getElementById('side-menu').classList.add('translate-x-full');
+        };
 
         document.getElementById('btn-logout').onclick = () => { localStorage.clear(); location.reload(); };
 
+        // 初始化
         (async () => {
             setTheme(localStorage.getItem('chat_theme') || 'fuchsia');
             setLang(currentLang);
@@ -409,6 +440,7 @@
             if(savedId) {
                 const snap = await getDoc(doc(db, 'users', savedId));
                 if(snap.exists()) { userProfile = snap.data(); enterChat(); }
+                else { localStorage.removeItem('chat_animal_id'); }
             }
             lucide.createIcons();
         })();
