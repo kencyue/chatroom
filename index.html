@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ChatApp - Pro Ultra Admin Final</title>
+    <title>ChatApp - Admin Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -22,7 +22,7 @@
         
         /* LINE 主題優化 */
         .theme-line { --main-color: #06c755; --bg-color: #8babd2; --panel-color: #ffffff; --text-color: #111111; --border-color: rgba(0,0,0,0.08); --input-bg: #f5f5f5; --msg-other: #ffffff; }
-        .theme-line .read-indicator { color: #374151 !important; text-shadow: none; font-weight: 500; font-size: 10px; }
+        .theme-line .read-indicator { color: #555555 !important; text-shadow: none; font-weight: normal; font-size: 10px; }
         .theme-line .time-text { color: #000000 !important; opacity: 0.4; }
 
         .theme-telegram { --main-color: #24A1DE; --bg-color: #17212b; --panel-color: #242f3d; --text-color: #ffffff; --border-color: rgba(0,0,0,0.2); --input-bg: #17212b; --msg-other: #242f3d; }
@@ -43,6 +43,7 @@
         .msg-bubble-me:active, .msg-bubble-other:active { opacity: 0.8; transform: scale(0.98); }
         .msg-bubble-me { background: var(--main-color); color: white; border-radius: 18px 18px 4px 18px; }
         .msg-bubble-other { background: var(--msg-other); color: var(--text-color); border-radius: 18px 18px 18px 4px; }
+        
         .theme-line .msg-bubble-me { background: #86e041; color: #000; }
         .theme-line .msg-bubble-other { background: #ffffff; color: #000; }
 
@@ -61,21 +62,22 @@
         .modal-box { transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
         .overlay-base.active .modal-box { transform: scale(1); }
 
-        /* Toast */
+        /* Toast 通知 */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
         .toast { background: var(--panel-color); border: 1px solid var(--border-color); padding: 12px 20px; rounded-2xl; shadow-xl; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; animation: slideDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); pointer-events: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
         @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
         .pulse-icon { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* Edit Modal Grid */
-        .edit-animal-btn { aspect-ratio: 1; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border: 2px solid transparent; background: rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer; }
-        .edit-animal-btn.selected { border-color: var(--main-color); background: rgba(0,0,0,0.1); transform: scale(0.95); }
+        /* Emoji Picker Styles */
+        .edit-slot { width: 3rem; height: 3rem; border-radius: 0.75rem; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; background: rgba(0,0,0,0.1); }
+        .edit-slot.filled { border-style: solid; border-color: var(--main-color); background: var(--input-bg); }
+        .emoji-grid-btn { aspect-ratio: 1; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; background: var(--input-bg); border: 1px solid var(--border-color); transition: transform 0.1s; }
+        .emoji-grid-btn:active { transform: scale(0.9); border-color: var(--main-color); }
         
-        /* Drag Handle */
-        .drag-handle { cursor: grab; opacity: 0.3; transition: opacity 0.2s; }
-        .drag-handle:hover { opacity: 1; }
-        .sortable-ghost { opacity: 0.4; background: rgba(0,0,0,0.1); }
+        /* Sortable Ghost Class */
+        .sortable-ghost { opacity: 0.4; background: var(--main-color); }
     </style>
 </head>
 <body class="theme-fuchsia">
@@ -124,6 +126,7 @@
     </div>
 
     <div id="chat-screen" class="hidden">
+        
         <div id="eco-overlay" class="overlay-base">
             <div class="bg-panel border border-base p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-[200px] text-center modal-box">
                 <i data-lucide="leaf" class="w-10 h-10 text-green-500 mb-3 pulse-icon"></i>
@@ -138,8 +141,8 @@
                 <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-red-500">
                     <i data-lucide="alert-triangle" class="w-6 h-6"></i>
                 </div>
-                <h3 id="modal-title" class="font-bold text-lg mb-2"></h3>
-                <p id="modal-desc" class="text-xs opacity-60 mb-6"></p>
+                <h3 id="modal-title" class="font-bold text-lg mb-2">Are you sure?</h3>
+                <p id="modal-desc" class="text-xs opacity-60 mb-6">This action cannot be undone.</p>
                 <div class="flex gap-3 w-full">
                     <button id="modal-cancel-btn" onclick="closeUniversalModal()" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold" data-i18n="cancel">Cancel</button>
                     <button id="modal-confirm-btn" class="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30">Confirm</button>
@@ -148,24 +151,29 @@
         </div>
 
         <div id="edit-modal" class="overlay-base">
-            <div class="bg-panel border border-base p-6 rounded-3xl shadow-2xl flex flex-col w-[320px] modal-box">
+            <div class="bg-panel border border-base p-6 rounded-3xl shadow-2xl flex flex-col w-[300px] modal-box">
                 <h3 class="font-bold text-lg mb-4 text-center">Edit User</h3>
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <div>
-                        <label class="text-[10px] opacity-60 font-bold uppercase mb-1 block">PIN Code</label>
-                        <input type="text" id="edit-pin" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-sm text-center tracking-widest font-bold">
+                        <label class="text-[10px] opacity-60 font-bold uppercase">PIN Code</label>
+                        <input type="text" id="edit-pin" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-sm text-center">
                     </div>
                     <div>
-                        <label class="text-[10px] opacity-60 font-bold uppercase mb-1 block">Avatar URL</label>
+                        <label class="text-[10px] opacity-60 font-bold uppercase">Avatar URL</label>
                         <input type="text" id="edit-avatar" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-xs">
                     </div>
                     <div>
-                        <label class="text-[10px] opacity-60 font-bold uppercase mb-2 block">Identity Animals (Select 3)</label>
-                        <div id="edit-animal-grid" class="grid grid-cols-4 gap-2"></div>
+                        <label class="text-[10px] opacity-60 font-bold uppercase mb-2 block">Animals (Identity)</label>
+                        <div class="flex justify-center gap-2 mb-3">
+                            <div id="edit-slot-0" class="edit-slot" onclick="removeEditAnimal(0)"></div>
+                            <div id="edit-slot-1" class="edit-slot" onclick="removeEditAnimal(1)"></div>
+                            <div id="edit-slot-2" class="edit-slot" onclick="removeEditAnimal(2)"></div>
+                        </div>
+                        <div id="edit-emoji-grid" class="grid grid-cols-4 gap-2"></div>
                     </div>
                 </div>
                 <div class="flex gap-3 w-full mt-6">
-                    <button onclick="document.getElementById('edit-modal').classList.remove('active')" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold" data-i18n="cancel">Cancel</button>
+                    <button onclick="document.getElementById('edit-modal').classList.remove('active')" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold">Cancel</button>
                     <button onclick="saveUserEdit()" class="flex-1 py-3 btn-main rounded-xl text-xs font-bold shadow-lg">Save</button>
                 </div>
             </div>
@@ -232,8 +240,8 @@
                 </div>
                 <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-base">
                     <label class="text-[10px] text-red-500 font-black mb-3 block uppercase" data-i18n="adminTitle">Admin</label>
-                    <div id="admin-user-container" class="mb-2"></div>
-                    <div id="sortable-user-list" class="space-y-2 min-h-[50px]"></div>
+                    <div id="admin-self-container" class="mb-2"></div>
+                    <div id="user-list" class="space-y-2"></div>
                 </div>
             </div>
             <div class="p-5 border-t border-base">
@@ -264,7 +272,7 @@
         const i18n = {
             zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", selectDate: "歷史日期", backToday: "回到今天", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除？", delUser: "註銷？", pinErr: "PIN 錯誤", inputNick: "輸入暱稱", read: "已讀", ecoTitle: "節能模式", ecoDesc: "暫停連線以節省流量", ecoWake: "點擊恢復", delSuccess: "執行成功", delFail: "執行失敗", delTitle: "刪除訊息？", delSubtitle: "此動作無法復原", delUserTitle: "刪除用戶？", delUserSubtitle: "該用戶將被強制登出", deletedTitle: "帳號已刪除", deletedDesc: "您的帳號已被管理員移除", cancel: "取消", delete: "刪除", confirm: "確定" },
             en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "Date", backToday: "Today", logout: "Logout", adminTitle: "Admin", noMsg: "No messages", delMsg: "Del?", delUser: "Del user?", pinErr: "PIN Error", inputNick: "Nickname", read: "Read", ecoTitle: "Eco Mode", ecoDesc: "Paused to save data", ecoWake: "Tap to Resume", delSuccess: "Success", delFail: "Failed", delTitle: "Delete Message?", delSubtitle: "Cannot be undone", delUserTitle: "Delete User?", delUserSubtitle: "User will be logged out", deletedTitle: "Account Deleted", deletedDesc: "You have been removed", cancel: "Cancel", delete: "Delete", confirm: "OK" },
-            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する", delSuccess: "成功", delFail: "失敗", delTitle: "メッセージ削除", delSubtitle: "元に戻せません", delUserTitle: "ユーザー削除？", delUserSubtitle: "強制ログアウトされます", deletedTitle: "アカウント削除", deletedDesc: "削除されました", cancel: "取消", delete: "削除", confirm: "OK" }
+            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する", delSuccess: "削除しました", delFail: "失敗しました", delTitle: "メッセージ削除", delSubtitle: "元に戻せません", delUserTitle: "ユーザー削除？", delUserSubtitle: "強制ログアウトされます", deletedTitle: "アカウント削除", deletedDesc: "削除されました", cancel: "取消", delete: "削除", confirm: "OK" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
@@ -274,7 +282,7 @@
         let otherUsersStatus = {};
         let currentChatDate = "";
         let editTargetId = null;
-        let currentEditAnimals = [];
+        let currentEditAnimals = []; // For Edit Modal
         
         let msgUnsubscribe = null;
         let statusUnsubscribe = null;
@@ -459,7 +467,7 @@
         function startRealtimeListeners() {
             if (statusUnsubscribe) statusUnsubscribe();
             statusUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-                // 1. Forced Logout Logic
+                // 1. Forced Logout Logic: If I am not in DB anymore
                 const amIExist = snap.docs.some(d => d.id === userProfile.animalId);
                 if (!amIExist) {
                     openUniversalModal('deletedTitle', 'deletedDesc', () => {
@@ -469,7 +477,7 @@
                     return;
                 }
 
-                // 2. Read Status Logic
+                // 2. Read Status & Re-render logic
                 let changed = false;
                 snap.docChanges().forEach(change => { if (change.doc.id !== userProfile.animalId) changed = true; });
                 snap.forEach(d => {
@@ -521,6 +529,7 @@
             document.getElementById('universal-modal').classList.remove('active');
         };
 
+        // Handle Delete Message
         window.handleMsgClick = (msgId, senderId) => {
             if (userProfile.role !== 'admin' && userProfile.animalId !== senderId) return;
             openUniversalModal('delTitle', 'delSubtitle', async () => {
@@ -536,44 +545,44 @@
             document.getElementById('admin-panel').classList.remove('hidden');
             if (adminUnsubscribe) adminUnsubscribe(); 
             adminUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-                const adminContainer = document.getElementById('admin-user-container');
-                const sortableContainer = document.getElementById('sortable-user-list');
-                adminContainer.innerHTML = "";
-                sortableContainer.innerHTML = "";
+                const list = document.getElementById('user-list');
+                const selfContainer = document.getElementById('admin-self-container');
+                list.innerHTML = "";
+                selfContainer.innerHTML = "";
 
                 snap.forEach(d => {
                     const u = d.data();
                     const item = document.createElement('div');
-                    const isAdm = u.role === 'admin';
-                    
-                    item.className = `p-3 rounded-2xl border flex justify-between items-center bg-black/5 ${isAdm ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-base drag-handle'}`;
+                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center";
                     item.innerHTML = `
                         <div class="flex items-center gap-3">
                             ${getAvatarHtml(u, "w-8 h-8")}
                             <div class="flex flex-col">
-                                <span class="font-bold text-xs ${isAdm ? 'text-yellow-500' : ''}">${u.name} ${isAdm ? '👑' : ''}</span>
+                                <span class="font-bold text-xs">${u.name}</span>
                                 <span class="text-[8px] opacity-50">PIN: ${u.pin}</span>
                             </div>
                         </div>
                         <div class="flex gap-2">
                             <button onclick='editUser("${d.id}", ${JSON.stringify(u).replace(/'/g, "&#39;")})' class="text-main bg-slate-500/10 p-2 rounded-xl"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                            ${!isAdm ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                            ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
                         </div>
                     `;
-                    
-                    if (isAdm) {
-                        adminContainer.appendChild(item);
+
+                    if (d.id === userProfile.animalId) {
+                        // Current Admin (Self) - Not Sortable
+                        item.classList.add('opacity-100', 'border-main'); 
+                        selfContainer.appendChild(item);
                     } else {
-                        sortableContainer.appendChild(item);
+                        // Others - Sortable
+                        list.appendChild(item);
                     }
                 });
                 lucide.createIcons();
                 
-                // Initialize Sortable on the non-admin container
-                new Sortable(sortableContainer, {
+                // Initialize Sortable on the 'Others' list
+                new Sortable(list, {
                     animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    handle: '.drag-handle' // Only sort by dragging the handle (entire card in this case)
+                    ghostClass: 'sortable-ghost'
                 });
             });
         }
@@ -587,49 +596,68 @@
             });
         };
 
-        // --- EDIT USER LOGIC ---
+        // --- EDIT USER LOGIC (With Emoji Picker) ---
         window.editUser = (uid, userData) => {
             editTargetId = uid;
             document.getElementById('edit-pin').value = userData.pin || "";
             document.getElementById('edit-avatar').value = userData.avatarUrl || "";
-            currentEditAnimals = userData.animals || [];
             
-            renderEditEmojiGrid();
+            // Initialize Emoji State
+            currentEditAnimals = userData.animals || [];
+            if (currentEditAnimals.length === 0 && userData.animalId) {
+                // If animals array missing but animalId exists (legacy), simple parse
+                // Note: simple parse might be buggy if emojis are multi-codepoint, but assumes array is better
+                currentEditAnimals = [...userData.animalId]; 
+            }
+            renderEditSlots();
+            renderEmojiGrid();
+            
             document.getElementById('edit-modal').classList.add('active');
         };
 
-        function renderEditEmojiGrid() {
-            const gridEl = document.getElementById('edit-animal-grid');
+        window.renderEditSlots = () => {
+            for(let i=0; i<3; i++) {
+                const el = document.getElementById(`edit-slot-${i}`);
+                el.innerText = currentEditAnimals[i] || "";
+                if(currentEditAnimals[i]) el.classList.add('filled');
+                else el.classList.remove('filled');
+            }
+        };
+
+        window.renderEmojiGrid = () => {
+            const gridEl = document.getElementById('edit-emoji-grid');
             gridEl.innerHTML = "";
-            ANIMALS.forEach(animal => {
-                const btn = document.createElement('div');
-                const isSelected = currentEditAnimals.includes(animal);
-                btn.className = `edit-animal-btn ${isSelected ? 'selected' : ''}`;
-                btn.innerText = animal;
-                btn.onclick = () => toggleEditAnimal(animal);
+            ANIMALS.forEach(a => {
+                const btn = document.createElement('button');
+                btn.className = "emoji-grid-btn";
+                btn.innerText = a;
+                btn.onclick = () => addEditAnimal(a);
                 gridEl.appendChild(btn);
             });
-        }
+        };
 
-        function toggleEditAnimal(animal) {
-            if (currentEditAnimals.includes(animal)) {
-                currentEditAnimals = currentEditAnimals.filter(a => a !== animal);
-            } else {
-                if (currentEditAnimals.length < 3) currentEditAnimals.push(animal);
+        window.addEditAnimal = (a) => {
+            if(currentEditAnimals.length < 3) {
+                currentEditAnimals.push(a);
+                renderEditSlots();
             }
-            renderEditEmojiGrid();
-        }
+        };
+
+        window.removeEditAnimal = (idx) => {
+            currentEditAnimals.splice(idx, 1);
+            renderEditSlots();
+        };
 
         window.saveUserEdit = async () => {
             if(!editTargetId) return;
             const pin = document.getElementById('edit-pin').value;
             const avatarUrl = document.getElementById('edit-avatar').value;
-
+            
             try {
                 await updateDoc(doc(db, 'users', editTargetId), {
                     pin: pin,
                     avatarUrl: avatarUrl,
-                    animals: currentEditAnimals
+                    animals: currentEditAnimals // Update the array
                 });
                 showToast(i18n[currentLang].delSuccess, "success");
                 document.getElementById('edit-modal').classList.remove('active');
@@ -637,7 +665,7 @@
                 showToast(i18n[currentLang].delFail, "error");
             }
         };
-        // -----------------------
+        // -------------------------------------------
 
         function renderMessages(snap) {
             const container = document.getElementById('messages-container');
