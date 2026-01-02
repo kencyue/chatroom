@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ChatApp - Pro Ultra Max Plus</title>
+    <title>ChatApp - Pro Ultra Admin Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -14,16 +14,14 @@
         .hidden { display: none !important; }
         body, html { height: 100%; margin: 0; overscroll-behavior: none; }
         
-        /* 主題與配色 */
+        /* 主題配色 */
         .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #334155; }
         .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #1e293b; }
         .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --msg-other: #e2e8f0; }
         
-        /* LINE 主題優化 */
+        /* LINE 主題：優化已讀與時間顏色 */
         .theme-line { --main-color: #06c755; --bg-color: #8babd2; --panel-color: #ffffff; --text-color: #111111; --border-color: rgba(0,0,0,0.08); --input-bg: #f5f5f5; --msg-other: #ffffff; }
-        /* LINE 主題特殊修正：已讀文字改為深灰色 */
-        .theme-line .read-indicator { color: #374151 !important; text-shadow: none; font-weight: 500; }
-        /* LINE 主題特殊修正：時間文字 */
+        .theme-line .read-indicator { color: #555555 !important; text-shadow: none; font-weight: normal; font-size: 10px; }
         .theme-line .time-text { color: #000000 !important; opacity: 0.4; }
 
         .theme-telegram { --main-color: #24A1DE; --bg-color: #17212b; --panel-color: #242f3d; --text-color: #ffffff; --border-color: rgba(0,0,0,0.2); --input-bg: #17212b; --msg-other: #242f3d; }
@@ -36,7 +34,6 @@
         
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; position: relative; }
         
-        /* 訊息氣泡 */
         .msg-bubble-me, .msg-bubble-other { 
             display: inline-block; padding: 10px 14px; max-width: 100%; word-break: break-all; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
             transition: transform 0.1s, opacity 0.2s;
@@ -53,25 +50,23 @@
         .animal-btn { aspect-ratio: 1; background: var(--input-bg); border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border-color); }
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
 
-        /* 通用遮罩樣式 */
+        /* 遮罩與模態視窗 */
         .overlay-base {
             position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 150; display: flex; flex-direction: column; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
         .overlay-base.active { opacity: 1; pointer-events: auto; }
-        
-        .pulse-icon { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-box { transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+        .overlay-base.active .modal-box { transform: scale(1); }
 
         /* Toast 通知 */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
         .toast { background: var(--panel-color); border: 1px solid var(--border-color); padding: 12px 20px; rounded-2xl; shadow-xl; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; animation: slideDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); pointer-events: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
         @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        /* 模態視窗動畫 */
-        .modal-box { transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
-        .overlay-base.active .modal-box { transform: scale(1); }
+        .pulse-icon { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body class="theme-fuchsia">
@@ -130,7 +125,7 @@
             </div>
         </div>
 
-        <div id="universal-modal" class="overlay-base z-[150]">
+        <div id="universal-modal" class="overlay-base">
             <div class="bg-panel border border-base p-6 rounded-3xl shadow-2xl flex flex-col items-center w-[280px] text-center modal-box">
                 <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-red-500">
                     <i data-lucide="alert-triangle" class="w-6 h-6"></i>
@@ -138,8 +133,32 @@
                 <h3 id="modal-title" class="font-bold text-lg mb-2">Are you sure?</h3>
                 <p id="modal-desc" class="text-xs opacity-60 mb-6">This action cannot be undone.</p>
                 <div class="flex gap-3 w-full">
-                    <button onclick="closeUniversalModal()" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold" data-i18n="cancel">Cancel</button>
+                    <button id="modal-cancel-btn" onclick="closeUniversalModal()" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold" data-i18n="cancel">Cancel</button>
                     <button id="modal-confirm-btn" class="flex-1 py-3 bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-modal" class="overlay-base">
+            <div class="bg-panel border border-base p-6 rounded-3xl shadow-2xl flex flex-col w-[300px] modal-box">
+                <h3 class="font-bold text-lg mb-4 text-center">Edit User</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] opacity-60 font-bold uppercase">PIN Code</label>
+                        <input type="text" id="edit-pin" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] opacity-60 font-bold uppercase">Avatar URL</label>
+                        <input type="text" id="edit-avatar" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] opacity-60 font-bold uppercase">Animals (Emoji)</label>
+                        <input type="text" id="edit-animals" class="w-full bg-black/5 border border-base rounded-xl px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-3 w-full mt-6">
+                    <button onclick="document.getElementById('edit-modal').classList.remove('active')" class="flex-1 py-3 bg-slate-500/10 rounded-xl text-xs font-bold">Cancel</button>
+                    <button onclick="saveUserEdit()" class="flex-1 py-3 btn-main rounded-xl text-xs font-bold shadow-lg">Save</button>
                 </div>
             </div>
         </div>
@@ -234,9 +253,9 @@
 
         // I18N
         const i18n = {
-            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", selectDate: "歷史日期", backToday: "回到今天", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除？", delUser: "註銷？", pinErr: "PIN 錯誤", inputNick: "輸入暱稱", read: "已讀", ecoTitle: "節能模式", ecoDesc: "暫停連線以節省流量", ecoWake: "點擊恢復", delSuccess: "刪除成功", delFail: "刪除失敗", delTitle: "刪除訊息？", delSubtitle: "此動作無法復原", delUserTitle: "刪除用戶？", cancel: "取消", delete: "刪除" },
-            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "Date", backToday: "Today", logout: "Logout", adminTitle: "Admin", noMsg: "No messages", delMsg: "Del?", delUser: "Del user?", pinErr: "PIN Error", inputNick: "Nickname", read: "Read", ecoTitle: "Eco Mode", ecoDesc: "Paused to save data", ecoWake: "Tap to Resume", delSuccess: "Deleted", delFail: "Failed", delTitle: "Delete Message?", delSubtitle: "Cannot be undone", delUserTitle: "Delete User?", cancel: "Cancel", delete: "Delete" },
-            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する", delSuccess: "削除しました", delFail: "失敗しました", delTitle: "メッセージ削除", delSubtitle: "元に戻せません", delUserTitle: "ユーザー削除？", cancel: "取消", delete: "削除" }
+            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", selectDate: "歷史日期", backToday: "回到今天", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除？", delUser: "註銷？", pinErr: "PIN 錯誤", inputNick: "輸入暱稱", read: "已讀", ecoTitle: "節能模式", ecoDesc: "暫停連線以節省流量", ecoWake: "點擊恢復", delSuccess: "執行成功", delFail: "執行失敗", delTitle: "刪除訊息？", delSubtitle: "此動作無法復原", delUserTitle: "刪除用戶？", delUserSubtitle: "該用戶將被強制登出", deletedTitle: "帳號已刪除", deletedDesc: "您的帳號已被管理員移除", cancel: "取消", delete: "刪除", confirm: "確定" },
+            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "Date", backToday: "Today", logout: "Logout", adminTitle: "Admin", noMsg: "No messages", delMsg: "Del?", delUser: "Del user?", pinErr: "PIN Error", inputNick: "Nickname", read: "Read", ecoTitle: "Eco Mode", ecoDesc: "Paused to save data", ecoWake: "Tap to Resume", delSuccess: "Success", delFail: "Failed", delTitle: "Delete Message?", delSubtitle: "Cannot be undone", delUserTitle: "Delete User?", delUserSubtitle: "User will be logged out", deletedTitle: "Account Deleted", deletedDesc: "You have been removed", cancel: "Cancel", delete: "Delete", confirm: "OK" },
+            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する", delSuccess: "成功", delFail: "失敗", delTitle: "メッセージ削除", delSubtitle: "元に戻せません", delUserTitle: "ユーザー削除？", delUserSubtitle: "強制ログアウトされます", deletedTitle: "アカウント削除", deletedDesc: "削除されました", cancel: "取消", delete: "削除", confirm: "OK" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
@@ -245,6 +264,7 @@
         let userProfile = null;
         let otherUsersStatus = {};
         let currentChatDate = "";
+        let editTargetId = null;
         
         let msgUnsubscribe = null;
         let statusUnsubscribe = null;
@@ -429,6 +449,17 @@
         function startRealtimeListeners() {
             if (statusUnsubscribe) statusUnsubscribe();
             statusUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
+                // 1. Forced Logout Logic
+                const amIExist = snap.docs.some(d => d.id === userProfile.animalId);
+                if (!amIExist) {
+                    openUniversalModal('deletedTitle', 'deletedDesc', () => {
+                        localStorage.clear();
+                        location.reload();
+                    }, true); // true = hide cancel button
+                    return;
+                }
+
+                // 2. Read Status Logic
                 let changed = false;
                 snap.docChanges().forEach(change => { if (change.doc.id !== userProfile.animalId) changed = true; });
                 snap.forEach(d => {
@@ -452,26 +483,26 @@
         }
 
         // ================= UNIVERSAL MODAL SYSTEM =================
-        let onModalConfirm = null;
-
-        window.openUniversalModal = (titleKey, subtitleKey, confirmAction) => {
+        window.openUniversalModal = (titleKey, subtitleKey, confirmAction, hideCancel = false) => {
             const modal = document.getElementById('universal-modal');
             const titleEl = document.getElementById('modal-title');
             const descEl = document.getElementById('modal-desc');
             const confirmBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
 
             titleEl.innerText = i18n[currentLang][titleKey] || titleKey;
             descEl.innerText = i18n[currentLang][subtitleKey] || subtitleKey;
             
-            // Unbind previous listener to avoid multiple triggers
+            cancelBtn.style.display = hideCancel ? 'none' : 'block';
+
             const newBtn = confirmBtn.cloneNode(true);
             confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
             
             newBtn.onclick = async () => {
                 await confirmAction();
-                closeUniversalModal();
+                if (!hideCancel) closeUniversalModal();
             };
-            newBtn.innerText = i18n[currentLang].delete;
+            newBtn.innerText = i18n[currentLang].confirm || "OK";
 
             modal.classList.add('active');
         };
@@ -480,30 +511,83 @@
             document.getElementById('universal-modal').classList.remove('active');
         };
 
-        // Handle Delete Message
         window.handleMsgClick = (msgId, senderId) => {
             if (userProfile.role !== 'admin' && userProfile.animalId !== senderId) return;
             openUniversalModal('delTitle', 'delSubtitle', async () => {
                 try {
                     await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
                     showToast(i18n[currentLang].delSuccess, "success");
-                } catch(e) {
-                    console.error(e);
-                    showToast(i18n[currentLang].delFail, "error");
-                }
+                } catch(e) { console.error(e); showToast(i18n[currentLang].delFail, "error"); }
             });
         };
 
-        // Handle Delete User (Admin)
+        // ================= ADMIN FUNCTIONS =================
+        function initAdmin() {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            if (adminUnsubscribe) adminUnsubscribe(); 
+            adminUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
+                const list = document.getElementById('user-list');
+                list.innerHTML = "";
+                snap.forEach(d => {
+                    const u = d.data();
+                    const item = document.createElement('div');
+                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center";
+                    // Store user data in button dataset for easy access
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            ${getAvatarHtml(u, "w-8 h-8")}
+                            <div class="flex flex-col">
+                                <span class="font-bold text-xs">${u.name}</span>
+                                <span class="text-[8px] opacity-50">PIN: ${u.pin}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick='editUser("${d.id}", ${JSON.stringify(u).replace(/'/g, "&#39;")})' class="text-main bg-slate-500/10 p-2 rounded-xl"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            });
+        }
+
         window.deleteUser = (uid) => {
-            openUniversalModal('delUserTitle', 'delSubtitle', async () => {
+            openUniversalModal('delUserTitle', 'delUserSubtitle', async () => {
                 try {
                     await deleteDoc(doc(db, 'users', uid));
                     showToast(i18n[currentLang].delSuccess, "success");
-                } catch(e) {
-                    showToast(i18n[currentLang].delFail, "error");
-                }
+                } catch(e) { showToast(i18n[currentLang].delFail, "error"); }
             });
+        };
+
+        window.editUser = (uid, userData) => {
+            editTargetId = uid;
+            document.getElementById('edit-pin').value = userData.pin || "";
+            document.getElementById('edit-avatar').value = userData.avatarUrl || "";
+            document.getElementById('edit-animals').value = (userData.animals || []).join("");
+            document.getElementById('edit-modal').classList.add('active');
+        };
+
+        window.saveUserEdit = async () => {
+            if(!editTargetId) return;
+            const pin = document.getElementById('edit-pin').value;
+            const avatarUrl = document.getElementById('edit-avatar').value;
+            const animalsStr = document.getElementById('edit-animals').value;
+            // Split string into array of chars (emojis)
+            const animals = [...animalsStr];
+
+            try {
+                await updateDoc(doc(db, 'users', editTargetId), {
+                    pin: pin,
+                    avatarUrl: avatarUrl,
+                    animals: animals
+                });
+                showToast(i18n[currentLang].delSuccess, "success");
+                document.getElementById('edit-modal').classList.remove('active');
+            } catch(e) {
+                showToast(i18n[currentLang].delFail, "error");
+            }
         };
         // ==========================================================
 
@@ -582,32 +666,6 @@
             loadMessages(today);
             document.getElementById('side-menu').classList.add('translate-x-full');
         };
-
-        function initAdmin() {
-            document.getElementById('admin-panel').classList.remove('hidden');
-            if (adminUnsubscribe) adminUnsubscribe(); 
-            adminUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-                const list = document.getElementById('user-list');
-                list.innerHTML = "";
-                snap.forEach(d => {
-                    const u = d.data();
-                    const item = document.createElement('div');
-                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center";
-                    item.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            ${getAvatarHtml(u, "w-8 h-8")}
-                            <div class="flex flex-col">
-                                <span class="font-bold text-xs">${u.name}</span>
-                                <span class="text-[8px] opacity-50">PIN: ${u.pin}</span>
-                            </div>
-                        </div>
-                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="user-x" class="w-4 h-4"></i></button>` : ''}
-                    `;
-                    list.appendChild(item);
-                });
-                lucide.createIcons();
-            });
-        }
 
         document.getElementById('btn-logout').onclick = () => { 
             const theme = localStorage.getItem('chat_theme');
