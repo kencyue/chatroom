@@ -18,6 +18,8 @@
         .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --login-overlay: #020617; }
         .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --login-overlay: #020617; }
         .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --login-overlay: #e2e8f0; }
+        /* LINE 主題 */
+        .theme-line { --main-color: #06C755; --bg-color: #8CABD9; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: #ffffff; --login-overlay: #06C755; }
 
         body { background: var(--bg-color); color: var(--text-color); transition: background 0.3s, color 0.3s; }
         .bg-panel { background: var(--panel-color); }
@@ -28,29 +30,21 @@
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         #messages-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
 
-        #animal-grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 12px; 
-            padding: 10px;
-            width: 100%;
-        }
-        .animal-btn { 
+        .animal-btn, .keypad-btn { 
             aspect-ratio: 1; 
             background: var(--input-bg); 
             border-radius: 1rem; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-size: 2rem;
             border: 1px solid var(--border-color);
+            transition: all 0.1s;
         }
+        .keypad-btn:active { transform: scale(0.9); background: var(--main-color); color: white; }
         
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--main-color); border-radius: 10px; }
-        
-        #login-screen { background-color: var(--login-overlay); }
     </style>
 </head>
 <body class="theme-fuchsia">
@@ -65,18 +59,38 @@
                     <div onclick="removeAnimal(1)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
                     <div onclick="removeAnimal(2)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
                 </div>
-                <div id="animal-grid"></div>
+                <div id="animal-grid" class="grid grid-cols-4 gap-3"></div>
                 <button id="btn-next" disabled class="w-full mt-6 btn-main py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg transition-all" data-i18n="nextStep">NEXT STEP</button>
             </div>
 
             <div id="login-step-2" class="hidden space-y-4">
-                <div id="id-preview" class="text-center text-5xl mb-4 tracking-[0.2em]"></div>
-                <input type="password" id="login-pin" inputmode="numeric" placeholder="PIN" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-4 text-center text-xl outline-none focus:border-main text-current">
-                <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-4 text-center outline-none text-current">
-                <div class="flex gap-2">
-                    <button id="btn-back" class="flex-1 bg-slate-500/20 py-4 rounded-2xl font-bold" data-i18n="back">BACK</button>
-                    <button id="btn-login" class="flex-[2] btn-main py-4 rounded-2xl font-black" data-i18n="login">LOGIN</button>
+                <div id="id-preview" class="text-center text-5xl mb-2 tracking-[0.2em]"></div>
+                
+                <div id="pin-display" class="flex justify-center gap-4 py-4">
+                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300"></div>
                 </div>
+
+                <input type="text" id="login-name" placeholder="Nickname" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-3 text-center outline-none text-current">
+
+                <div class="grid grid-cols-3 gap-3 px-4">
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('1')">1</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('2')">2</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('3')">3</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('4')">4</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('5')">5</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('6')">6</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('7')">7</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('8')">8</button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('9')">9</button>
+                    <button class="keypad-btn opacity-50" onclick="pressKey('C')"><i data-lucide="delete"></i></button>
+                    <button class="keypad-btn font-bold text-xl" onclick="pressKey('0')">0</button>
+                    <button class="keypad-btn text-main font-black" onclick="loginAction()"><i data-lucide="check-circle-2"></i></button>
+                </div>
+                
+                <button id="btn-back" class="w-full bg-slate-500/10 py-3 rounded-2xl font-bold text-sm" data-i18n="back">BACK</button>
             </div>
         </div>
     </div>
@@ -111,26 +125,23 @@
                 <span class="font-black text-main uppercase tracking-widest" data-i18n="settings">Settings</span>
                 <button onclick="toggleSideMenu()"><i data-lucide="x"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
+            <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar text-current">
                 <div>
                     <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="langTitle">Language</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="setLang('zh')" class="py-2 rounded-xl border border-base text-xs font-bold" id="lang-zh">繁體中文</button>
-                        <button onclick="setLang('en')" class="py-2 rounded-xl border border-base text-xs font-bold" id="lang-en">English</button>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="setLang('zh')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-zh">繁體</button>
+                        <button onclick="setLang('en')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-en">EN</button>
+                        <button onclick="setLang('ja')" class="py-2 rounded-xl border border-base text-[10px] font-bold" id="lang-ja">日本語</button>
                     </div>
                 </div>
                 <div>
                     <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="themeTitle">Theme Color</label>
-                    <div class="flex gap-3">
+                    <div class="flex flex-wrap gap-3">
                         <button onclick="setTheme('fuchsia')" class="w-10 h-10 rounded-full bg-fuchsia-600 border-2 border-white/20"></button>
                         <button onclick="setTheme('blue')" class="w-10 h-10 rounded-full bg-blue-600 border-2 border-white/20"></button>
                         <button onclick="setTheme('white')" class="w-10 h-10 rounded-full bg-white border-2 border-slate-300 shadow-inner"></button>
+                        <button onclick="setTheme('line')" class="w-10 h-10 rounded-full bg-[#06C755] border-2 border-white/20"></button>
                     </div>
-                </div>
-                <div>
-                    <label class="text-[10px] opacity-60 mb-3 block uppercase font-black tracking-widest" data-i18n="selectDate">Select Date</label>
-                    <input type="text" id="date-picker-input" class="w-full bg-black/5 border border-base rounded-2xl px-4 py-3 text-sm text-center font-bold mb-3 text-current">
-                    <button onclick="goToday()" class="w-full py-3 bg-black/5 text-main rounded-xl text-xs font-bold border border-base" data-i18n="backToday">Back to Today</button>
                 </div>
                 <div id="admin-panel" class="hidden space-y-4 pt-6 border-t border-base">
                     <label class="text-[10px] text-red-500 font-black mb-3 block uppercase tracking-widest" data-i18n="adminTitle">User Management (Admin)</label>
@@ -148,6 +159,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, deleteDoc, getDocs, limit } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
+        // Firebase Config (保持原樣)
         const firebaseConfig = {
             apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
             authDomain: "chatroom-89cc9.firebaseapp.com",
@@ -171,24 +183,31 @@
             },
             en: {
                 loginTitle: "Identity Login", nextStep: "Next Step", back: "Back", login: "Login",
-                settings: "Settings", langTitle: "Language", themeTitle: "Interface Theme",
-                selectDate: "Select History", backToday: "Back to Today", logout: "Logout",
-                adminTitle: "User Mgmt (Admin)", noMsg: "No messages for today", delMsg: "Delete message?",
-                delUser: "Delete this user?", pinErr: "PIN Error", inputNick: "Enter Nickname", inputPin: "Enter PIN"
+                settings: "Settings", langTitle: "Language", themeTitle: "Theme",
+                selectDate: "History", backToday: "Today", logout: "Logout",
+                adminTitle: "User Mgmt", noMsg: "No messages", delMsg: "Delete?",
+                delUser: "Delete user?", pinErr: "PIN Error", inputNick: "Nickname", inputPin: "PIN"
+            },
+            ja: {
+                loginTitle: "本人認証", nextStep: "次へ", back: "戻る", login: "ログイン",
+                settings: "システム設定", langTitle: "言語設定", themeTitle: "テーマ",
+                selectDate: "履歴を選択", backToday: "今日に戻る", logout: "ログアウト",
+                adminTitle: "ユーザー管理", noMsg: "メッセージはありません", delMsg: "削除しますか？",
+                delUser: "ユーザーを削除しますか？", pinErr: "PINが違います", inputNick: "ニックネームを入力", inputPin: "PIN入力"
             }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
+        let currentPin = "";
         const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐙", "🐧", "🦄", "🦖"];
         let selectedAnimals = [];
         let userProfile = null;
         let currentChatDate = "";
         let msgUnsubscribe = null;
-        let fpInstance = null;
 
         const getTodayStr = () => new Date().toLocaleDateString('sv');
 
-        // --- 修正後的 Theme 與 Lang 函數 (掛載到 window) ---
+        // --- Window Actions ---
         window.setTheme = (theme) => {
             document.body.className = `theme-${theme}`;
             localStorage.setItem('chat_theme', theme);
@@ -201,18 +220,34 @@
                 const key = el.getAttribute('data-i18n');
                 el.innerText = i18n[lang][key];
             });
-            document.getElementById('login-pin').placeholder = i18n[lang].inputPin + " (4-8 digits)";
             document.getElementById('login-name').placeholder = i18n[lang].inputNick;
-            
-            document.getElementById('lang-zh').className = `py-2 rounded-xl border border-base text-xs font-bold ${lang==='zh'?'btn-main shadow-md':'opacity-50'}`;
-            document.getElementById('lang-en').className = `py-2 rounded-xl border border-base text-xs font-bold ${lang==='en'?'btn-main shadow-md':'opacity-50'}`;
+            ['zh', 'en', 'ja'].forEach(l => {
+                document.getElementById(`lang-${l}`).className = `py-2 rounded-xl border border-base text-[10px] font-bold ${lang===l?'btn-main shadow-md':'opacity-50'}`;
+            });
         };
 
-        // --- 初始化動物網格 ---
+        // Keypad Logic
+        window.pressKey = (k) => {
+            if(k === 'C') {
+                currentPin = "";
+            } else {
+                if(currentPin.length < 8) currentPin += k;
+            }
+            updatePinDots();
+        };
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('#pin-display div');
+            dots.forEach((d, i) => {
+                d.className = `w-3 h-3 rounded-full transition-all ${i < currentPin.length ? 'bg-main scale-125' : 'bg-slate-300'}`;
+            });
+        }
+
+        // Animal Grid
         const grid = document.getElementById('animal-grid');
         ANIMALS.forEach(a => {
             const b = document.createElement('button');
-            b.className = "animal-btn"; b.innerText = a;
+            b.className = "animal-btn text-2xl p-2"; b.innerText = a;
             b.onclick = () => { if(selectedAnimals.length < 3) { selectedAnimals.push(a); updateSlots(); } };
             grid.appendChild(b);
         });
@@ -226,23 +261,23 @@
             document.getElementById('btn-next').disabled = selectedAnimals.length !== 3;
         }
 
-        // --- 登入流程 ---
         document.getElementById('btn-next').onclick = () => {
             document.getElementById('login-step-1').classList.add('hidden');
             document.getElementById('login-step-2').classList.remove('hidden');
             document.getElementById('id-preview').innerText = selectedAnimals.join('');
+            lucide.createIcons();
         };
 
         document.getElementById('btn-back').onclick = () => {
             document.getElementById('login-step-1').classList.remove('hidden');
             document.getElementById('login-step-2').classList.add('hidden');
+            currentPin = ""; updatePinDots();
         };
 
-        document.getElementById('btn-login').onclick = async () => {
-            const pin = document.getElementById('login-pin').value;
+        window.loginAction = async () => {
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-            if(pin.length < 4) return alert("PIN required (min 4 digits)");
+            if(currentPin.length < 4) return alert("PIN (min 4)");
 
             try {
                 await signInAnonymously(auth);
@@ -250,14 +285,13 @@
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pin) return alert(i18n[currentLang].pinErr);
+                    if (userSnap.data().pin !== currentPin) return alert(i18n[currentLang].pinErr);
                     userProfile = userSnap.data();
                 } else {
                     if (!name) return alert(i18n[currentLang].inputNick);
-                    const userQuery = query(collection(db, 'users'), limit(1));
-                    const userCheck = await getDocs(userQuery);
+                    const userCheck = await getDocs(query(collection(db, 'users'), limit(1)));
                     const role = userCheck.empty ? 'admin' : 'user';
-                    userProfile = { name, pin, animalId, animals: selectedAnimals, role, createdAt: Date.now() };
+                    userProfile = { name, pin: currentPin, animalId, animals: selectedAnimals, role, createdAt: Date.now() };
                     await setDoc(userRef, userProfile);
                 }
                 localStorage.setItem('chat_animal_id', animalId);
@@ -270,25 +304,10 @@
             document.getElementById('chat-screen').classList.remove('hidden');
             document.getElementById('header-avatar').innerText = userProfile.animals[0];
             document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
-            
-            if(!fpInstance) {
-                fpInstance = flatpickr("#date-picker-input", {
-                    defaultDate: "today", maxDate: "today", theme: "dark",
-                    onChange: ([date]) => loadMessages(date.toLocaleDateString('sv'))
-                });
-            }
-
             if(userProfile.role === 'admin') initAdmin();
             loadMessages(getTodayStr());
             lucide.createIcons();
         }
-
-        window.goToday = () => {
-            const today = getTodayStr();
-            if(fpInstance) fpInstance.setDate(today);
-            loadMessages(today);
-            document.getElementById('side-menu').classList.add('translate-x-full');
-        };
 
         function loadMessages(dateStr) {
             if(msgUnsubscribe) msgUnsubscribe();
@@ -303,21 +322,18 @@
                     const m = d.data();
                     const isMe = m.senderId === userProfile.animalId;
                     const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
-                    
                     const msgDiv = document.createElement('div');
                     msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
                     msgDiv.innerHTML = `
                         <div class="w-10 h-10 rounded-2xl bg-slate-500/10 flex shrink-0 items-center justify-center text-xl border border-base">${m.avatar}</div>
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[9px] opacity-50 font-black tracking-wider">${m.senderName}</span>
-                                ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500/50 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                                <span class="text-[9px] opacity-50 font-black">${m.senderName}</span>
+                                ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500 opacity-50"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
                             </div>
                             <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2.5 rounded-2xl text-[14px] ${isMe ? 'btn-main shadow-lg' : 'bg-slate-500/10 border border-base'}">
-                                    ${m.text}
-                                </div>
-                                <span class="text-[8px] opacity-40 font-mono mb-1 shrink-0">${time}</span>
+                                <div class="px-4 py-2.5 rounded-2xl text-[14px] ${isMe ? 'btn-main shadow-lg' : 'bg-slate-500/10 border border-base'}">${m.text}</div>
+                                <span class="text-[8px] opacity-40 font-mono mb-1">${time}</span>
                             </div>
                         </div>
                     `;
@@ -328,24 +344,18 @@
             });
         }
 
-        window.deleteMsg = async (msgId) => {
-            if(confirm(i18n[currentLang].delMsg)) {
-                await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
-            }
-        };
+        window.deleteMsg = async (id) => { if(confirm(i18n[currentLang].delMsg)) await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', id)); };
 
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
             if(!text) return;
-            const today = getTodayStr();
-            await addDoc(collection(db, 'rooms', today, 'messages'), {
+            await addDoc(collection(db, 'rooms', getTodayStr(), 'messages'), {
                 text, senderId: userProfile.animalId, senderName: userProfile.name,
                 avatar: userProfile.animals[0], timestamp: Date.now()
             });
             input.value = "";
-            if(currentChatDate !== today) goToday();
         };
 
         function initAdmin() {
@@ -356,13 +366,17 @@
                 snap.forEach(d => {
                     const u = d.data();
                     const item = document.createElement('div');
-                    item.className = "p-4 bg-black/5 rounded-2xl text-xs border border-base flex justify-between items-center";
+                    item.className = "p-3 bg-black/5 rounded-2xl border border-base flex justify-between items-center group transition-all";
                     item.innerHTML = `
                         <div class="flex flex-col">
-                            <span class="font-black">${u.animals.join('')} ${u.name}</span>
-                            <span class="text-[9px] text-main font-mono tracking-widest uppercase">${u.role} | PIN: ${u.pin}</span>
+                            <span class="font-black text-xs">${u.animals.join('')} ${u.name}</span>
+                            <span class="text-[8px] text-main font-mono">${u.role.toUpperCase()} | PIN: ${u.pin}</span>
                         </div>
-                        ${u.role !== 'admin' ? `<button onclick="deleteUser('${d.id}')" class="text-red-500 bg-red-500/10 p-2 rounded-xl"><i data-lucide="user-minus" class="w-4 h-4"></i></button>` : '<i data-lucide="shield-check" class="text-amber-500 w-4 h-4"></i>'}
+                        ${u.role !== 'admin' ? 
+                            `<button onclick="deleteUser('${d.id}')" class="w-9 h-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-xl active:bg-red-500 active:text-white transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>` : 
+                            '<i data-lucide="shield-check" class="text-amber-500 w-5 h-5"></i>'}
                     `;
                     list.appendChild(item);
                 });
@@ -371,7 +385,7 @@
         }
 
         window.deleteUser = async (uid) => {
-            if(confirm(i18n[currentLang].delUser + " " + uid)) await deleteDoc(doc(db, 'users', uid));
+            if(confirm(i18n[currentLang].delUser)) await deleteDoc(doc(db, 'users', uid));
         };
 
         window.toggleSideMenu = () => {
@@ -379,26 +393,16 @@
             lucide.createIcons();
         };
 
-        document.getElementById('btn-logout').onclick = () => { 
-            localStorage.clear(); 
-            location.reload(); 
-        };
+        document.getElementById('btn-logout').onclick = () => { localStorage.clear(); location.reload(); };
 
-        // --- 全域初始化 ---
         (async () => {
-            const savedTheme = localStorage.getItem('chat_theme') || 'fuchsia';
-            setTheme(savedTheme);
+            setTheme(localStorage.getItem('chat_theme') || 'fuchsia');
             setLang(currentLang);
-            
             const savedId = localStorage.getItem('chat_animal_id');
             if(savedId) {
                 const snap = await getDoc(doc(db, 'users', savedId));
-                if(snap.exists()) {
-                    userProfile = snap.data();
-                    enterChat();
-                } else {
-                    localStorage.removeItem('chat_animal_id');
-                }
+                if(snap.exists()) { userProfile = snap.data(); enterChat(); }
+                else { localStorage.removeItem('chat_animal_id'); }
             }
             lucide.createIcons();
         })();
