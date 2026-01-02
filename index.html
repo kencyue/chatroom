@@ -29,17 +29,16 @@
         
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         
-        /* 強制修正：氣泡基本樣式 */
+        /* 氣泡基礎樣式 */
         .msg-bubble-me, .msg-bubble-other { 
             display: inline-block;
-            padding: 10px 14px;
+            padding: 10px 16px;
             max-width: 100%;
             word-break: break-all;
-            position: relative;
             box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
-        /* 統一 Telegram 圓角風格 */
+        /* 統一採用 Telegram 風格非對稱圓角 */
         .msg-bubble-me { 
             background: var(--main-color); 
             color: white; 
@@ -51,7 +50,7 @@
             border-radius: 18px 18px 18px 4px; 
         }
         
-        /* LINE 氣泡特殊顏色 */
+        /* LINE 主題特殊顏色 */
         .theme-line .msg-bubble-me { background: #86e041; color: #000; }
         .theme-line .msg-bubble-other { background: #ffffff; color: #000; }
 
@@ -116,7 +115,7 @@
             <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl"><i data-lucide="menu" class="w-6 h-6 text-main"></i></button>
         </header>
 
-        <div id="messages-container" class="p-4 space-y-4 overflow-y-auto flex-1 bg-black/5"></div>
+        <div id="messages-container" class="p-4 space-y-4 overflow-y-auto flex-1"></div>
 
         <div class="p-3 border-t border-base bg-panel safe-bottom">
             <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
@@ -177,13 +176,15 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, deleteDoc, getDocs, limit, updateDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
+        // 套用新 Firebase 設定
         const firebaseConfig = {
-            apiKey: "AIzaSyBx-TGj56ULPupKwP1YipgQOgyBqwSAnos",
-            authDomain: "chatroom-89cc9.firebaseapp.com",
-            projectId: "chatroom-89cc9",
-            storageBucket: "chatroom-89cc9.firebasestorage.app",
-            messagingSenderId: "631226685830",
-            appId: "1:631226685830:web:e3d3e0ed3202ff96d6b407"
+            apiKey: "AIzaSyD7mYKdo7UhvU1S20MCBYTZRl9TSzwVgs0",
+            authDomain: "chat-55cda.firebaseapp.com",
+            projectId: "chat-55cda",
+            storageBucket: "chat-55cda.firebasestorage.app",
+            messagingSenderId: "123687300838",
+            appId: "1:123687300838:web:9e550dc2a5af00cdc11527",
+            measurementId: "G-T2W407BN4Q"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -206,6 +207,7 @@
         let statusUnsubscribe = null;
         let fpInstance = null;
         let tempPin = "";
+        let lastSnap = null;
 
         const getTodayStr = () => new Date().toLocaleDateString('sv');
 
@@ -303,13 +305,12 @@
             document.getElementById('header-avatar-container').innerHTML = getAvatarHtml(userProfile, "w-full h-full");
             document.getElementById('current-ch-name').innerText = userProfile.name + (userProfile.role === 'admin' ? ' 👑' : '');
             
-            // 監聽已讀狀態
             if (statusUnsubscribe) statusUnsubscribe();
             statusUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
                 snap.forEach(d => {
                     if(d.id !== userProfile.animalId) otherUsersStatus[d.id] = d.data().lastRead || 0;
                 });
-                if(currentChatDate) renderMessages(lastSnap); 
+                if(lastSnap) renderMessages(lastSnap); 
             });
 
             if(!fpInstance) {
@@ -327,7 +328,6 @@
             lucide.createIcons();
         }
 
-        let lastSnap = null;
         function loadMessages(dateStr) {
             if(msgUnsubscribe) msgUnsubscribe();
             currentChatDate = dateStr;
@@ -337,12 +337,12 @@
             msgUnsubscribe = onSnapshot(q, (snap) => {
                 lastSnap = snap;
                 renderMessages(snap);
+                if(dateStr === getTodayStr()) updateMyStatus();
             });
         }
 
         function renderMessages(snap) {
             const container = document.getElementById('messages-container');
-            if(!snap) return;
             container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
             
             snap.forEach(d => {
@@ -364,6 +364,7 @@
                             <div class="flex flex-col items-center">
                                 ${isMe && isReadByOthers ? `<span class="text-[8px] text-main font-bold mb-0.5">${i18n[currentLang].read}</span>` : ''}
                                 <span class="text-[8px] opacity-40 font-mono">${time}</span>
+                                ${userProfile.role === 'admin' ? `<button onclick="deleteMsg('${d.id}')" class="text-red-500/20 hover:text-red-500 mt-1"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -373,6 +374,12 @@
             container.scrollTop = container.scrollHeight;
             lucide.createIcons();
         }
+
+        window.deleteMsg = async (msgId) => {
+            if(confirm(i18n[currentLang].delMsg)) {
+                await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
+            }
+        };
 
         window.updateAvatar = async () => {
             const url = document.getElementById('avatar-url-input').value;
