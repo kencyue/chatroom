@@ -32,8 +32,10 @@
         /* 特殊主題氣泡微調 */
         .theme-line .msg-bubble-me { background: #86e041; color: #000; border: none; }
         .theme-line .msg-bubble-other { background: #ffffff; color: #000; border: none; }
-        .theme-telegram .msg-bubble-me { background: #2b5278; color: #fff; border: none; }
-        .theme-telegram .msg-bubble-other { background: #242f3d; color: #fff; border: none; }
+        
+        /* Telegram 氣泡深度美化 */
+        .theme-telegram .msg-bubble-me { background: #2b5278; color: #fff; border: none; border-radius: 18px 18px 4px 18px; }
+        .theme-telegram .msg-bubble-other { background: #242f3d; color: #fff; border: none; border-radius: 18px 18px 18px 4px; }
 
         /* 數字鍵盤樣式 */
         .keypad-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 1rem; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; transition: all 0.1s; width: 100%; }
@@ -297,7 +299,7 @@
                     defaultDate: "today", maxDate: "today", theme: "dark",
                     onChange: ([date]) => {
                         loadMessages(date.toLocaleDateString('sv'));
-                        toggleSideMenu(); // 選擇完日期自動收回選單
+                        toggleSideMenu();
                     }
                 });
             }
@@ -333,7 +335,7 @@
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
                             <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
                             <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'msg-bubble-me btn-main shadow-md' : 'msg-bubble-other bg-panel border border-base'}">
+                                <div class="px-4 py-2 text-sm ${isMe ? 'msg-bubble-me btn-main shadow-md' : 'msg-bubble-other bg-panel border border-base'}">
                                     ${m.text}
                                 </div>
                                 <div class="flex flex-col items-center">
@@ -350,8 +352,16 @@
             });
         }
 
+        // --- 修正後的刪除訊息函數 ---
         window.deleteMsg = async (msgId) => {
-            if(confirm(i18n[currentLang].delMsg)) await deleteDoc(doc(db, 'users', currentChatDate, 'messages', msgId));
+            if(confirm(i18n[currentLang].delMsg)) {
+                try {
+                    // 正確路徑：房間 / 日期 / 訊息集合 / 訊息 ID
+                    await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
+                } catch (e) {
+                    alert("Delete failed: " + e.message);
+                }
+            }
         };
 
         document.getElementById('chat-form').onsubmit = async (e) => {
@@ -414,7 +424,7 @@
             const theme = localStorage.getItem('chat_theme');
             const lang = localStorage.getItem('chat_lang');
             localStorage.clear(); 
-            localStorage.setItem('chat_theme', theme); // 保留主題偏好
+            localStorage.setItem('chat_theme', theme);
             localStorage.setItem('chat_lang', lang);
             location.reload(); 
         };
