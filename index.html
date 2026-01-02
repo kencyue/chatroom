@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ChatApp - Pro Ultra (Eco Mode)</title>
+    <title>ChatApp - Pro Ultra Max</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -14,7 +14,7 @@
         .hidden { display: none !important; }
         body, html { height: 100%; margin: 0; overscroll-behavior: none; }
         
-        /* 主題顏色定義 */
+        /* 主題與配色 */
         .theme-fuchsia { --main-color: #c026d3; --bg-color: #0f172a; --panel-color: #1e293b; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #334155; }
         .theme-blue { --main-color: #2563eb; --bg-color: #020617; --panel-color: #0f172a; --text-color: #ffffff; --border-color: rgba(255,255,255,0.1); --input-bg: rgba(0,0,0,0.4); --msg-other: #1e293b; }
         .theme-white { --main-color: #6366f1; --bg-color: #f8fafc; --panel-color: #ffffff; --text-color: #1e293b; --border-color: rgba(0,0,0,0.1); --input-bg: rgba(0,0,0,0.05); --msg-other: #e2e8f0; }
@@ -29,9 +29,12 @@
         
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; position: relative; }
         
+        /* 訊息氣泡優化 */
         .msg-bubble-me, .msg-bubble-other { 
             display: inline-block; padding: 10px 14px; max-width: 100%; word-break: break-all; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.1s, opacity 0.2s;
         }
+        .msg-bubble-me:active, .msg-bubble-other:active { opacity: 0.8; transform: scale(0.98); }
         .msg-bubble-me { background: var(--main-color); color: white; border-radius: 18px 18px 4px 18px; }
         .msg-bubble-other { background: var(--msg-other); color: var(--text-color); border-radius: 18px 18px 18px 4px; }
         
@@ -43,18 +46,25 @@
         .animal-btn { aspect-ratio: 1; background: var(--input-bg); border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border-color); }
         .safe-bottom { padding-bottom: calc(0.5rem + var(--sat)); }
 
-        /* 節能模式樣式 */
+        /* 節能遮罩 */
         #eco-overlay {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
             z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
         #eco-overlay.active { opacity: 1; pointer-events: auto; }
         .pulse-icon { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* Toast 通知 */
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
+        .toast { background: var(--panel-color); border: 1px solid var(--border-color); padding: 12px 20px; rounded-2xl; shadow-xl; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; animation: slideDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); pointer-events: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body class="theme-fuchsia">
+    <div id="toast-container"></div>
+
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div class="w-full max-w-sm bg-panel border border-base p-6 rounded-[2.5rem] shadow-2xl">
             <h1 data-i18n="loginTitle" class="text-xl font-bold text-center mb-6 text-main tracking-widest uppercase">Identity Login</h1>
@@ -121,12 +131,12 @@
             <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl"><i data-lucide="menu" class="w-6 h-6 text-main"></i></button>
         </header>
 
-        <div id="messages-container" class="p-4 space-y-4 overflow-y-auto flex-1 bg-black/5"></div>
+        <div id="messages-container" class="p-4 space-y-4 overflow-y-auto flex-1 bg-black/5 scroll-smooth"></div>
 
         <div class="p-3 border-t border-base bg-panel safe-bottom">
             <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
-                <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current">
-                <button type="submit" class="btn-main p-3 rounded-full shadow-lg"><i data-lucide="send" class="w-5 h-5"></i></button>
+                <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current transition-all focus:bg-black/10">
+                <button type="submit" class="btn-main p-3 rounded-full shadow-lg transform active:scale-95 transition-transform"><i data-lucide="send" class="w-5 h-5"></i></button>
             </form>
         </div>
 
@@ -195,10 +205,11 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // I18N
         const i18n = {
-            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", selectDate: "歷史日期", backToday: "回到今天", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除？", delUser: "註銷？", pinErr: "PIN 錯誤", inputNick: "輸入暱稱", read: "已讀", ecoTitle: "節能模式", ecoDesc: "暫停連線以節省流量", ecoWake: "點擊恢復" },
-            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "Date", backToday: "Today", logout: "Logout", adminTitle: "Admin", noMsg: "No messages", delMsg: "Del?", delUser: "Del user?", pinErr: "PIN Error", inputNick: "Nickname", read: "Read", ecoTitle: "Eco Mode", ecoDesc: "Paused to save data", ecoWake: "Tap to Resume" },
-            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する" }
+            zh: { loginTitle: "身份驗證登入", nextStep: "下一步", back: "返回", login: "登入", settings: "設定", langTitle: "語言", themeTitle: "主題", selectDate: "歷史日期", backToday: "回到今天", logout: "登出", adminTitle: "用戶管理", noMsg: "尚無訊息", delMsg: "刪除？", delUser: "註銷？", pinErr: "PIN 錯誤", inputNick: "輸入暱稱", read: "已讀", ecoTitle: "節能模式", ecoDesc: "暫停連線以節省流量", ecoWake: "點擊恢復", delMsgConfirm: "刪除此訊息？", delSuccess: "訊息已刪除", delFail: "刪除失敗" },
+            en: { loginTitle: "Identity Login", nextStep: "Next", back: "Back", login: "Login", settings: "Settings", langTitle: "Language", themeTitle: "Theme", selectDate: "Date", backToday: "Today", logout: "Logout", adminTitle: "Admin", noMsg: "No messages", delMsg: "Del?", delUser: "Del user?", pinErr: "PIN Error", inputNick: "Nickname", read: "Read", ecoTitle: "Eco Mode", ecoDesc: "Paused to save data", ecoWake: "Tap to Resume", delMsgConfirm: "Delete message?", delSuccess: "Deleted", delFail: "Failed" },
+            ja: { loginTitle: "ログイン", nextStep: "次へ", back: "戻る", login: "ログイン", settings: "設定", langTitle: "言語", themeTitle: "テーマ", selectDate: "履歴", backToday: "今日", logout: "ログアウト", adminTitle: "管理", noMsg: "なし", delMsg: "削除？", delUser: "削除？", pinErr: "PIN違い", inputNick: "ニックネーム", read: "既読", ecoTitle: "省エネモード", ecoDesc: "通信を一時停止中", ecoWake: "再開する", delMsgConfirm: "削除しますか？", delSuccess: "削除しました", delFail: "失敗しました" }
         };
 
         let currentLang = localStorage.getItem('chat_lang') || 'zh';
@@ -208,20 +219,37 @@
         let otherUsersStatus = {};
         let currentChatDate = "";
         
-        // Unsubscribe functions
         let msgUnsubscribe = null;
         let statusUnsubscribe = null;
         let adminUnsubscribe = null;
-
         let fpInstance = null;
         let tempPin = "";
 
-        // ECO MODE VARIABLES
+        // ECO & Optimization Variables
         let idleTimer;
         let isEcoMode = false;
-        const IDLE_TIMEOUT = 30000; // 30 seconds
+        const IDLE_TIMEOUT = 30000; // 30s idle -> Eco Mode
+        let lastStatusUpdate = 0;   // Timestamp for throttling
+        const STATUS_THROTTLE = 60000; // Only update status every 60s max (unless sending msg)
 
         const getTodayStr = () => new Date().toLocaleDateString('sv');
+
+        // TOAST Notification System
+        window.showToast = (msg, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const icon = type === 'error' ? 'alert-circle' : 'check-circle';
+            const color = type === 'error' ? 'text-red-500' : 'text-green-500';
+            toast.className = `toast`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="${color} w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        };
 
         window.setTheme = (theme) => {
             document.body.className = `theme-${theme}`;
@@ -281,30 +309,33 @@
             const pin = tempPin;
             const name = document.getElementById('login-name').value;
             const animalId = selectedAnimals.join('');
-            if(pin.length < 4) return alert("PIN min 4 digits");
+            if(pin.length < 4) return showToast("PIN min 4 digits", "error");
             try {
                 await signInAnonymously(auth);
                 const userRef = doc(db, 'users', animalId);
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
-                    if (userSnap.data().pin !== pin) return alert(i18n[currentLang].pinErr);
+                    if (userSnap.data().pin !== pin) return showToast(i18n[currentLang].pinErr, "error");
                     userProfile = userSnap.data();
                 } else {
-                    if (!name) return alert(i18n[currentLang].inputNick);
+                    if (!name) return showToast(i18n[currentLang].inputNick, "error");
                     const userCheck = await getDocs(query(collection(db, 'users'), limit(1)));
                     userProfile = { name, pin, animalId, animals: selectedAnimals, role: userCheck.empty ? 'admin' : 'user', createdAt: Date.now(), avatarUrl: "", lastRead: Date.now() };
                     await setDoc(userRef, userProfile);
                 }
                 localStorage.setItem('chat_animal_id', animalId);
                 enterChat();
-            } catch (e) { alert(e.message); }
+            } catch (e) { showToast(e.message, "error"); }
         };
 
-        async function updateMyStatus() {
-            if (!userProfile) return;
-            // 只有在非節能模式下才更新狀態，避免背景更新
-            if (isEcoMode) return; 
+        // --- OPTIMIZATION: Throttled Status Update ---
+        async function updateMyStatus(force = false) {
+            if (!userProfile || isEcoMode) return;
             const now = Date.now();
+            // 如果不是強制更新(發訊息)，且距離上次更新不到 60 秒，則跳過
+            if (!force && now - lastStatusUpdate < STATUS_THROTTLE) return;
+            
+            lastStatusUpdate = now;
             await updateDoc(doc(db, 'users', userProfile.animalId), { lastRead: now });
         }
 
@@ -332,14 +363,11 @@
             }
             if(userProfile.role === 'admin') initAdmin();
             loadMessages(getTodayStr());
-            updateMyStatus();
+            updateMyStatus(true); // Login force update
             lucide.createIcons();
-            
-            // 啟動閒置偵測
             initIdleTracker();
         }
         
-        // -------- ECO MODE LOGIC START --------
         function initIdleTracker() {
             const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'click'];
             events.forEach(e => document.addEventListener(e, resetIdleTimer));
@@ -347,9 +375,7 @@
         }
 
         function resetIdleTimer() {
-            if (isEcoMode) {
-                wakeUp();
-            }
+            if (isEcoMode) { wakeUp(); }
             clearTimeout(idleTimer);
             idleTimer = setTimeout(goEcoMode, IDLE_TIMEOUT);
         }
@@ -357,17 +383,11 @@
         function goEcoMode() {
             if (isEcoMode) return;
             isEcoMode = true;
-            
-            // 停止所有 Firestore 監聽
             if (msgUnsubscribe) { msgUnsubscribe(); msgUnsubscribe = null; }
             if (statusUnsubscribe) { statusUnsubscribe(); statusUnsubscribe = null; }
             if (adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
-
-            // 顯示遮罩
             const overlay = document.getElementById('eco-overlay');
             overlay.classList.add('active');
-            
-            // 更新 UI 狀態
             document.getElementById('live-indicator').classList.replace('bg-green-500', 'bg-red-500');
             document.getElementById('live-indicator').classList.remove('animate-pulse');
         }
@@ -375,27 +395,27 @@
         function wakeUp() {
             if (!isEcoMode) return;
             isEcoMode = false;
-            
-            // 隱藏遮罩
             document.getElementById('eco-overlay').classList.remove('active');
             document.getElementById('live-indicator').classList.replace('bg-red-500', 'bg-green-500');
             document.getElementById('live-indicator').classList.add('animate-pulse');
-            
-            // 恢復監聽
             startRealtimeListeners();
             if (currentChatDate) loadMessages(currentChatDate);
             if (userProfile.role === 'admin') initAdmin();
             updateMyStatus();
         }
-        // -------- ECO MODE LOGIC END --------
 
         function startRealtimeListeners() {
             if (statusUnsubscribe) statusUnsubscribe();
             statusUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
+                let changed = false;
+                snap.docChanges().forEach(change => { if (change.doc.id !== userProfile.animalId) changed = true; });
+                
                 snap.forEach(d => {
                     if(d.id !== userProfile.animalId) otherUsersStatus[d.id] = d.data().lastRead || 0;
                 });
-                if(currentChatDate && lastSnap) renderMessages(lastSnap); 
+                
+                // 只有當其他人狀態真的改變時才重繪，避免無意義渲染
+                if(changed && currentChatDate && lastSnap) renderMessages(lastSnap); 
             });
         }
 
@@ -412,9 +432,27 @@
             });
         }
 
+        window.handleMsgClick = async (msgId, senderId) => {
+            if (userProfile.role !== 'admin' && userProfile.animalId !== senderId) return;
+            if (confirm(i18n[currentLang].delMsgConfirm)) {
+                try {
+                    await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
+                    showToast(i18n[currentLang].delSuccess, "success");
+                } catch(e) {
+                    console.error(e);
+                    showToast(i18n[currentLang].delFail, "error");
+                }
+            }
+        };
+
         function renderMessages(snap) {
             const container = document.getElementById('messages-container');
             if(!snap) return;
+            
+            // Smart Scroll: Check if user is near bottom
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+            const oldScrollHeight = container.scrollHeight;
+
             container.innerHTML = snap.empty ? `<div class="text-center opacity-40 py-20 text-xs tracking-widest uppercase">${i18n[currentLang].noMsg}</div>` : "";
             
             snap.forEach(d => {
@@ -422,6 +460,8 @@
                 const isMe = m.senderId === userProfile.animalId;
                 const time = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
                 const isReadByOthers = Object.values(otherUsersStatus).some(lr => lr > m.timestamp);
+                const canDelete = userProfile.role === 'admin' || isMe;
+                const cursorClass = canDelete ? 'cursor-pointer' : '';
 
                 const msgDiv = document.createElement('div');
                 msgDiv.className = `flex gap-2 mb-4 ${isMe ? 'flex-row-reverse' : ''}`;
@@ -430,7 +470,7 @@
                     <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
                         <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
                         <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                            <div class="${isMe ? 'msg-bubble-me' : 'msg-bubble-other'}">
+                            <div class="${isMe ? 'msg-bubble-me' : 'msg-bubble-other'} ${cursorClass}" onclick="handleMsgClick('${d.id}', '${m.senderId}')">
                                 ${m.text}
                             </div>
                             <div class="flex flex-col items-center">
@@ -442,7 +482,14 @@
                 `;
                 container.appendChild(msgDiv);
             });
-            container.scrollTop = container.scrollHeight;
+
+            // Scroll Logic
+            if (isNearBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                // Keep scroll position relative to content
+                // (Optional refinement for complex apps, but keeping bottom is usually preferred for chat unless reading history)
+            }
             lucide.createIcons();
         }
 
@@ -450,6 +497,7 @@
             const url = document.getElementById('avatar-url-input').value;
             await updateDoc(doc(db, 'users', userProfile.animalId), { avatarUrl: url });
             userProfile.avatarUrl = url;
+            showToast("Avatar Updated", "success");
             enterChat();
         };
 
@@ -459,15 +507,13 @@
             const text = input.value.trim();
             if(!text) return;
             
-            // 傳訊息時如果處於節能模式，會被輸入框的 focus/keydown 喚醒，所以這裡不用特別處理
-            
             const today = getTodayStr();
             await addDoc(collection(db, 'rooms', today, 'messages'), {
                 text, senderId: userProfile.animalId, senderName: userProfile.name,
                 avatar: userProfile.animals[0], avatarUrl: userProfile.avatarUrl || "", timestamp: Date.now()
             });
             input.value = "";
-            updateMyStatus();
+            updateMyStatus(true); // Force update status on send
             if(currentChatDate !== today) goToday();
         };
 
@@ -485,7 +531,7 @@
 
         function initAdmin() {
             document.getElementById('admin-panel').classList.remove('hidden');
-            if (adminUnsubscribe) adminUnsubscribe(); // 避免重複監聽
+            if (adminUnsubscribe) adminUnsubscribe(); 
             adminUnsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
                 const list = document.getElementById('user-list');
                 list.innerHTML = "";
