@@ -29,15 +29,23 @@
         
         #chat-screen { height: 100dvh; display: flex; flex-direction: column; }
         
-        /* 特殊主題氣泡微調 */
+        /* 全局氣泡基礎圓角 */
+        .msg-bubble-me, .msg-bubble-other { 
+            border-radius: 18px; 
+            padding: 10px 16px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        /* LINE 特殊處理 */
         .theme-line .msg-bubble-me { background: #86e041; color: #000; border: none; }
         .theme-line .msg-bubble-other { background: #ffffff; color: #000; border: none; }
         
-        /* Telegram 氣泡深度美化 */
+        /* Telegram 特殊圓角設計 */
         .theme-telegram .msg-bubble-me { background: #2b5278; color: #fff; border: none; border-radius: 18px 18px 4px 18px; }
         .theme-telegram .msg-bubble-other { background: #242f3d; color: #fff; border: none; border-radius: 18px 18px 18px 4px; }
 
-        /* 數字鍵盤樣式 */
+        /* 數字鍵盤 */
         .keypad-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 1rem; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; transition: all 0.1s; width: 100%; }
         .keypad-btn:active { background: var(--main-color); color: white; transform: scale(0.95); }
 
@@ -49,7 +57,6 @@
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div class="w-full max-w-sm bg-panel border border-base p-6 rounded-[2.5rem] shadow-2xl">
             <h1 data-i18n="loginTitle" class="text-xl font-bold text-center mb-6 text-main tracking-widest uppercase">Identity Login</h1>
-            
             <div id="login-step-1">
                 <div class="flex justify-center gap-3 mb-6">
                     <div onclick="removeAnimal(0)" class="selected-slot w-14 h-14 rounded-2xl bg-black/5 border-2 border-dashed border-base flex items-center justify-center text-3xl cursor-pointer"></div>
@@ -59,7 +66,6 @@
                 <div id="animal-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
                 <button id="btn-next" disabled class="w-full btn-main py-4 rounded-2xl font-black disabled:opacity-20 shadow-lg" data-i18n="nextStep">NEXT STEP</button>
             </div>
-
             <div id="login-step-2" class="hidden space-y-4">
                 <div id="id-preview" class="text-center text-5xl mb-2 tracking-[0.2em]"></div>
                 <div class="flex justify-center gap-2 mb-4" id="pin-display-dots">
@@ -99,22 +105,15 @@
                     <p id="display-date" class="text-[10px] text-main font-mono font-bold"></p>
                 </div>
             </div>
-            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl">
-                <i data-lucide="menu" class="w-6 h-6 text-main"></i>
-            </button>
+            <button onclick="toggleSideMenu()" class="p-2.5 bg-slate-500/10 rounded-xl"><i data-lucide="menu" class="w-6 h-6 text-main"></i></button>
         </header>
-        
         <div id="messages-container" class="p-4 space-y-4 overflow-y-auto flex-1"></div>
-
         <div class="p-3 border-t border-base bg-panel safe-bottom">
             <form id="chat-form" class="flex gap-2 max-w-5xl mx-auto">
                 <input type="text" id="msg-input" placeholder="Aa..." autocomplete="off" class="flex-1 bg-black/5 border border-base rounded-full px-5 py-3 outline-none text-sm text-current">
-                <button type="submit" class="btn-main p-3 rounded-full shadow-lg">
-                    <i data-lucide="send" class="w-5 h-5"></i>
-                </button>
+                <button type="submit" class="btn-main p-3 rounded-full shadow-lg"><i data-lucide="send" class="w-5 h-5"></i></button>
             </form>
         </div>
-
         <aside id="side-menu" class="fixed inset-y-0 right-0 w-80 bg-panel shadow-2xl border-l border-base transform translate-x-full transition-transform duration-300 z-[110] flex flex-col">
             <div class="p-5 border-b border-base flex justify-between items-center bg-black/5">
                 <span class="font-black text-main uppercase tracking-widest" data-i18n="settings">Settings</span>
@@ -335,7 +334,7 @@
                         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]">
                             <span class="text-[9px] opacity-50 font-black mb-1 px-1">${m.senderName}</span>
                             <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                                <div class="px-4 py-2 text-sm ${isMe ? 'msg-bubble-me btn-main shadow-md' : 'msg-bubble-other bg-panel border border-base'}">
+                                <div class="msg-bubble-${isMe ? 'me btn-main shadow-md' : 'other bg-panel border border-base'}">
                                     ${m.text}
                                 </div>
                                 <div class="flex flex-col items-center">
@@ -352,11 +351,9 @@
             });
         }
 
-        // --- 修正後的刪除訊息函數 ---
         window.deleteMsg = async (msgId) => {
             if(confirm(i18n[currentLang].delMsg)) {
                 try {
-                    // 正確路徑：房間 / 日期 / 訊息集合 / 訊息 ID
                     await deleteDoc(doc(db, 'rooms', currentChatDate, 'messages', msgId));
                 } catch (e) {
                     alert("Delete failed: " + e.message);
